@@ -65,6 +65,7 @@ def fetch_company_web_info(
         "```json\n{\"supportive\": 0.8}\n``` "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0."
+
     )
 
     cache_dir = Path.home() / "llm_cache"
