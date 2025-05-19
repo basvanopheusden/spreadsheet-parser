@@ -117,3 +117,7 @@ python -m unittest discover -s tests -v
 No additional dependencies or environment variables are required for testing.
 The tests provide their own ``OPENAI_API_KEY`` and stub out the ``openai``
 package when it is not installed.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
