@@ -132,6 +132,19 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertAlmostEqual(result.get("supportive"), 0.3)
 
+    def test_parse_llm_response_embedded_apostrophes(self):
+        text = (
+            "Intro.\n"
+            "```json\n"
+            '{"organization_name": "O\'Reilly", "supportive": 0.6}'
+            "\n```"
+        )
+        result = parse_llm_response(text)
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result.get("organization_name"), "O'Reilly")
+        self.assertAlmostEqual(result.get("supportive"), 0.6)
+
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):
         mock_client = mock_openai.return_value
