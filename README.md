@@ -44,3 +44,8 @@ The repository also contains a simple helper, `fetch_company_web_info`, in
 company from the web. The helper expects an ``OPENAI_API_KEY`` environment
 variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If no
 model is specified, it defaults to ``gpt-4o``.
+
+You may provide just the company name or pass a `Company` object returned from
+`read_companies_from_csv`. When a dataclass is supplied, all details from the CSV
+are included in the prompt sent to the LLM so that it can give a more informed
+summary.

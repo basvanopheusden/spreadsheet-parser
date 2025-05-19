@@ -1,18 +1,24 @@
 import os
-from typing import Optional
+from dataclasses import asdict
+from typing import Optional, Union
+
+from parser import Company
 
 import openai
 
 
-def fetch_company_web_info(company_name: str, model: Optional[str] = None) -> Optional[str]:
+def fetch_company_web_info(
+    company: Union[str, Company], model: Optional[str] = None
+) -> Optional[str]:
     """Ask an LLM to search the web for company information.
 
-    This is a stub implementation that assumes the underlying model has the
-    ability to search the web.  It sends a simple prompt to the OpenAI API
-    using the key found in the ``OPENAI_API_KEY`` environment variable.  By
-    default it targets a modern GPT-4 based model but callers can override the
-    model either via the ``model`` parameter or the ``OPENAI_MODEL``
-    environment variable.
+    This stub assumes the model can perform web searches. It sends a prompt to
+    the OpenAI API using the ``OPENAI_API_KEY`` environment variable. Callers
+    may provide either a company name or a :class:`Company` instance obtained
+    from :func:`parser.read_companies_from_csv`. If a dataclass is given, all
+    available details are provided to the model.  The default model targets a
+    modern GPT-4 version, but callers may override it via the ``model``
+    parameter or ``OPENAI_MODEL`` environment variable.
     """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -22,10 +28,22 @@ def fetch_company_web_info(company_name: str, model: Optional[str] = None) -> Op
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
 
-    prompt = (
-        f"Search the web for information about {company_name}. "
+    if isinstance(company, str):
+        company_name = company
+        csv_details = ""
+    else:
+        company_name = company.organization_name
+        info = asdict(company)
+        info.pop("organization_name", None)
+        lines = [f"{k.replace('_', ' ').title()}: {v}" for k, v in info.items() if v]
+        csv_details = "\n".join(lines)
+
+    prompt = f"Search the web for information about {company_name}. "
+    if csv_details:
+        prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
+    prompt += (
         "Summarize the company's business model, data strategy, and likely "
-        "stance on interoperability and access legislation." 
+        "stance on interoperability and access legislation."
     )
 
     response = openai.ChatCompletion.create(
