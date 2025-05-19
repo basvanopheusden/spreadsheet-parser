@@ -61,3 +61,16 @@ python lookup_companies.py path/to/companies.csv --max-lines 5
 ```
 
 This will print summaries for the first few companies in the spreadsheet.
+
+## Running Tests
+
+The project uses Python's built-in ``unittest`` framework. To execute the entire
+test suite, run the following command from the repository root:
+
+```bash
+python -m unittest discover tests
+```
+
+No additional dependencies or environment variables are required for testing.
+The tests provide their own ``OPENAI_API_KEY`` and stub out the ``openai``
+package when it is not installed.
