@@ -1,5 +1,7 @@
 import os
+import hashlib
 from dataclasses import asdict
+from pathlib import Path
 from typing import Optional, Union
 
 from parser import Company
@@ -8,7 +10,10 @@ import openai
 
 
 def fetch_company_web_info(
-    company: Union[str, Company], model: Optional[str] = None
+    company: Union[str, Company],
+    model: Optional[str] = None,
+    *,
+    seed: Optional[int] = None,
 ) -> Optional[str]:
     """Ask an LLM to search the web for company information.
 
@@ -28,6 +33,14 @@ def fetch_company_web_info(
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
 
+    if seed is None:
+        env_seed = os.getenv("OPENAI_SEED")
+        if env_seed is not None:
+            try:
+                seed = int(env_seed)
+            except ValueError:
+                seed = None
+
     if isinstance(company, str):
         company_name = company
         csv_details = ""
@@ -46,6 +59,15 @@ def fetch_company_web_info(
         "stance on interoperability and access legislation."
     )
 
+    cache_dir = Path.home() / "llm_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.sha256(
+        f"{model_name}\n{prompt}\n{seed}".encode("utf-8")
+    ).hexdigest()
+    cache_file = cache_dir / f"{cache_key}.txt"
+    if cache_file.exists():
+        return cache_file.read_text(encoding="utf-8")
+
     response = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -58,10 +80,16 @@ def fetch_company_web_info(
             },
             {"role": "user", "content": prompt},
         ],
+        **({"seed": seed} if seed is not None else {}),
     )
 
     message = response.choices[0].message
     if isinstance(message, dict):
-        return message.get("content")
-    return getattr(message, "content", None)
+        content = message.get("content")
+    else:
+        content = getattr(message, "content", None)
+
+    if content is not None:
+        cache_file.write_text(content, encoding="utf-8")
+    return content
 
