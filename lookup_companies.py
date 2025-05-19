@@ -181,33 +181,41 @@ async def _run_async(companies, max_concurrency: int) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
 
     stances: List[Optional[float]] = []
+    cached_count = 0
 
     async def fetch(company):
         async with semaphore:
-            return await async_fetch_company_web_info(company.organization_name)
+            return await async_fetch_company_web_info(
+                company.organization_name,
+                return_cache_info=True,
+            )
 
     tasks = [asyncio.create_task(fetch(c)) for c in companies]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for idx, result in enumerate(results, start=1):
-        company = companies[idx - 1]
-        print(f"\n[{idx}/{len(companies)}] Result for: {company.organization_name}")
+    for result in results:
         if isinstance(result, Exception):
-            print(f"Error fetching info for {company.organization_name}: {result}")
             stances.append(None)
+            continue
         elif result:
+            content, cached = result
+            if cached:
+                cached_count += 1
+            if content:
+
             print(result)
             parsed = parse_llm_response(result)
             if parsed is None:
                 stances.append(None)
             else:
                 stances.append(parsed.get("supportive"))
+
         else:
-            print("No summary returned.")
             stances.append(None)
 
     report = generate_final_report(companies, stances)
-    print("\n" + report)
+    print(report)
+    print(f"Cached responses used: {cached_count}")
 
 
 if __name__ == "__main__":

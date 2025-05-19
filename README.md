@@ -68,7 +68,8 @@ control the level of concurrency with the `--max-concurrency` flag (default is 5
 python lookup_companies.py path/to/companies.csv --max-lines 5 --max-concurrency 10
 ```
 
-This will print summaries for the first few companies in the spreadsheet.
+This will fetch summaries and then display only the final report. The output
+also notes how many responses were retrieved from the local cache.
 
 ## Report Generation
 

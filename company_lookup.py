@@ -2,7 +2,7 @@ import os
 import hashlib
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 import json
 import re
 
@@ -16,7 +16,8 @@ def fetch_company_web_info(
     model: Optional[str] = None,
     *,
     seed: Optional[int] = None,
-) -> Optional[str]:
+    return_cache_info: bool = False,
+) -> Union[Optional[str], Tuple[Optional[str], bool]]:
     """Ask an LLM to search the web for company information.
 
     This stub assumes the model can perform web searches. It sends a prompt to
@@ -76,7 +77,8 @@ def fetch_company_web_info(
     ).hexdigest()
     cache_file = cache_dir / f"{cache_key}.txt"
     if cache_file.exists():
-        return cache_file.read_text(encoding="utf-8")
+        content = cache_file.read_text(encoding="utf-8")
+        return (content, True) if return_cache_info else content
 
     response = client.chat.completions.create(
         model=model_name,
@@ -101,7 +103,7 @@ def fetch_company_web_info(
 
     if content is not None:
         cache_file.write_text(content, encoding="utf-8")
-    return content
+    return (content, False) if return_cache_info else content
 
 
 async def async_fetch_company_web_info(
@@ -109,7 +111,8 @@ async def async_fetch_company_web_info(
     model: Optional[str] = None,
     *,
     seed: Optional[int] = None,
-) -> Optional[str]:
+    return_cache_info: bool = False,
+) -> Union[Optional[str], Tuple[Optional[str], bool]]:
     """Asynchronously fetch company info using OpenAI.
 
     This mirrors :func:`fetch_company_web_info` but operates asynchronously and
@@ -163,7 +166,8 @@ async def async_fetch_company_web_info(
     ).hexdigest()
     cache_file = cache_dir / f"{cache_key}.txt"
     if cache_file.exists():
-        return cache_file.read_text(encoding="utf-8")
+        content = cache_file.read_text(encoding="utf-8")
+        return (content, True) if return_cache_info else content
 
     response = await client.chat.completions.create(
         model=model_name,
@@ -188,7 +192,7 @@ async def async_fetch_company_web_info(
 
     if content is not None:
         cache_file.write_text(content, encoding="utf-8")
-    return content
+    return (content, False) if return_cache_info else content
 
 
 def _parse_support_value(value: object) -> Optional[float]:
