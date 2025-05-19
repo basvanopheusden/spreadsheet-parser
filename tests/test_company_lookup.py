@@ -28,7 +28,8 @@ from company_lookup import (
     async_fetch_company_web_info,
     parse_llm_response,
 )
-from lookup_companies import generate_final_report, _industry
+import csv
+from lookup_companies import generate_final_report, _industry, _run_async
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
@@ -284,6 +285,75 @@ class TestIndustryNormalization(unittest.TestCase):
         self.assertEqual(_industry(base), "Artificial Intelligence")
         self.assertEqual(_industry(alias1), "Artificial Intelligence")
         self.assertEqual(_industry(alias2), "Artificial Intelligence")
+
+
+class TestRunAsync(unittest.TestCase):
+    @patch('lookup_companies.async_fetch_company_web_info')
+    def test_qualitative_justification_column(self, mock_fetch):
+        responses = {
+            'Acme Corp': (
+                "Summary one.\n"
+                "```json\n"
+                '{"supportive": 0.9, "justification": "Because open standards are good"}'
+                "\n```"
+            ),
+            'Globex Inc': (
+                "Summary two.\n"
+                "```json\n"
+                '{"supportive": 0.4}'
+                "\n```"
+            ),
+        }
+
+        async def fake_fetch(name, *, return_cache_info=False):
+            return (responses[name], False)
+
+        mock_fetch.side_effect = fake_fetch
+
+        companies = [
+            Company(
+                organization_name="Acme Corp",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries="Technology",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Globex Inc",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries="Manufacturing",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            asyncio.run(_run_async(companies, 1, pathlib.Path(tmpdir)))
+            csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
+            with csv_path.open(newline="") as f:
+                rows = list(csv.reader(f))
+
+        self.assertEqual(rows[0][0], "Company Name")
+        acme = rows[1]
+        globex = rows[2]
+        self.assertNotEqual(acme[2], acme[4])
+        self.assertEqual(globex[2], globex[4])
 
 if __name__ == '__main__':
     unittest.main()
