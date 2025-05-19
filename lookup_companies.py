@@ -268,8 +268,10 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 parsed = parse_llm_response(content)
                 if parsed is None:
                     stance_val = None
+                    justification = None
                 else:
                     stance_val = parsed.get("supportive")
+                    justification = parsed.get("justification")
                 stances.append(stance_val)
                 summary_text = re.split(r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL)[0].strip()
                 if stance_val is None:
@@ -283,7 +285,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     _industry(company),
                     summary_text,
                     stance_label,
-                    summary_text,
+                    justification or summary_text,
                     rank_str,
                 ])
             else:
