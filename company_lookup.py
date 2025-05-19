@@ -64,7 +64,8 @@ def fetch_company_web_info(
         "For example:\n"
         "```json\n{\"supportive\": 0.8}\n``` "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
-        "while Meta and Palantir might be near 0."
+        "while Meta and Palantir might be near 0. "
+        "Finish with ONLY the JSON block on a new line."
 
     )
 
@@ -136,7 +137,8 @@ async def async_fetch_company_web_info(
         "For example:\n"
         "```json\n{\"supportive\": 0.8}\n``` "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
-        "while Meta and Palantir might be near 0."
+        "while Meta and Palantir might be near 0. "
+        "Finish with ONLY the JSON block on a new line."
     )
 
     response = await client.chat.completions.create(
