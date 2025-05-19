@@ -58,7 +58,10 @@ def fetch_company_web_info(
         prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
     prompt += (
         "Summarize the company's business model, data strategy, and likely "
-        "stance on interoperability and access legislation."
+        "stance on interoperability and access legislation. "
+        "End with a JSON code block containing the key 'stance' and the "
+        "model's single-sentence assessment, for example:\n"
+        "```json\n{\"stance\": \"supportive\"}\n```"
     )
 
     cache_dir = Path.home() / "llm_cache"
