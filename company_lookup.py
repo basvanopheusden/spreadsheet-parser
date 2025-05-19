@@ -61,9 +61,9 @@ def fetch_company_web_info(
         "Summarize the company's business model, data strategy, and likely "
         "stance on interoperability and access legislation. "
         "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
-        "End with a JSON code block containing the key 'supportive' with this number. "
-        "For example:\n"
-        "```json\n{\"supportive\": 0.8}\n``` "
+        "End with a JSON code block containing sanitized versions of any provided fields "
+        "along with the numeric 'supportive' value. For example:\n"
+        "```json\n{\"organization_name\": \"Acme Corp\", \"supportive\": 0.8}\n``` "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
         "Finish with ONLY the JSON block on a new line."
@@ -151,9 +151,9 @@ async def async_fetch_company_web_info(
         "Summarize the company's business model, data strategy, and likely "
         "stance on interoperability and access legislation. "
         "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
-        "End with a JSON code block containing the key 'supportive' with this number. "
-        "For example:\n"
-        "```json\n{\"supportive\": 0.8}\n``` "
+        "End with a JSON code block containing sanitized versions of any provided fields "
+        "along with the numeric 'supportive' value. For example:\n"
+        "```json\n{\"organization_name\": \"Acme Corp\", \"supportive\": 0.8}\n``` "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
         "Finish with ONLY the JSON block on a new line."
@@ -195,8 +195,34 @@ async def async_fetch_company_web_info(
     return (content, False) if return_cache_info else content
 
 
-def parse_llm_response(response: str) -> Optional[float]:
-    """Extract the numeric `supportive` value from the JSON markdown block in the LLM response."""
+def _parse_support_value(value: object) -> Optional[float]:
+    """Normalize the ``supportive`` field to a float between 0 and 1."""
+
+    if isinstance(value, (int, float)):
+        num = float(value)
+        if 0.0 <= num <= 1.0:
+            return num
+        return None
+
+    text = str(value).strip().lower()
+    if text in {"true", "yes"}:
+        return 1.0
+    if text in {"false", "no"}:
+        return 0.0
+
+    match_num = re.search(r"-?\d*\.?\d+", text)
+    if match_num:
+        try:
+            num = float(match_num.group())
+            if 0.0 <= num <= 1.0:
+                return num
+        except ValueError:
+            pass
+    return None
+
+
+def parse_llm_response(response: str) -> Optional[dict]:
+    """Extract sanitized fields and the ``supportive`` value from the LLM response."""
 
     if not response:
         return None
@@ -211,29 +237,8 @@ def parse_llm_response(response: str) -> Optional[float]:
     except json.JSONDecodeError:
         return None
 
-    supportive = data.get("supportive")
-    if supportive is None:
-        return None
+    supportive = _parse_support_value(data.get("supportive"))
+    data["supportive"] = supportive
 
-    if isinstance(supportive, (int, float)):
-        value = float(supportive)
-        if 0.0 <= value <= 1.0:
-            return value
-        return None
-
-    text = str(supportive).strip().lower()
-    if text in {"true", "yes"}:
-        return 1.0
-    if text in {"false", "no"}:
-        return 0.0
-
-    match_num = re.search(r"-?\d*\.?\d+", text)
-    if match_num:
-        try:
-            value = float(match_num.group())
-            if 0.0 <= value <= 1.0:
-                return value
-        except ValueError:
-            pass
-    return None
+    return data
 

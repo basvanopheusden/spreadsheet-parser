@@ -68,7 +68,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     self.assertIn("Acme Corp", user_content)
                     self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
                     self.assertIn("Headquarters Location: New York, NY", user_content)
-                    self.assertIn("key 'supportive'", user_content)
+                    self.assertIn("'supportive'", user_content)
                     self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
                     self.assertIn("Mozilla", user_content)
                     self.assertIn(
@@ -80,12 +80,14 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"supportive": 0.75}'
+            '{"organization_name": "Acme", "supportive": 0.75}'
             "\n```"
         )
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertAlmostEqual(result, 0.75)
+        self.assertIsInstance(result, dict)
+        self.assertAlmostEqual(result.get("supportive"), 0.75)
+        self.assertEqual(result.get("organization_name"), "Acme")
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -94,16 +96,18 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIsNone(parse_llm_response(bad_json))
 
         text_yes = "```json\n{\"supportive\": \"yes\"}\n```"
-        self.assertEqual(parse_llm_response(text_yes), 1.0)
+        self.assertEqual(parse_llm_response(text_yes)["supportive"], 1.0)
 
         text_no = "```json\n{\"supportive\": \"no\"}\n```"
-        self.assertEqual(parse_llm_response(text_no), 0.0)
+        self.assertEqual(parse_llm_response(text_no)["supportive"], 0.0)
 
         text_str_number = "```json\n{\"supportive\": \"0.25\"}\n```"
-        self.assertAlmostEqual(parse_llm_response(text_str_number), 0.25)
+        self.assertAlmostEqual(parse_llm_response(text_str_number)["supportive"], 0.25)
 
         text_out_of_range = "```json\n{\"supportive\": 1.5}\n```"
-        self.assertIsNone(parse_llm_response(text_out_of_range))
+        result = parse_llm_response(text_out_of_range)
+        self.assertIsNotNone(result)
+        self.assertIsNone(result.get("supportive"))
 
     def test_parse_llm_response_no_label(self):
         text = (
@@ -114,7 +118,8 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         )
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertAlmostEqual(result, 0.6)
+        self.assertIsInstance(result, dict)
+        self.assertAlmostEqual(result.get("supportive"), 0.6)
 
     def test_parse_llm_response_single_quotes(self):
         text = (
@@ -125,7 +130,8 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         )
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertAlmostEqual(result, 0.3)
+        self.assertIsInstance(result, dict)
+        self.assertAlmostEqual(result.get("supportive"), 0.3)
 
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):
