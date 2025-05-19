@@ -36,6 +36,17 @@ class TestIndustryHelper(unittest.TestCase):
         company = self.make_company("This industry description has many words")
         self.assertEqual(_industry(company), "Unknown")
 
+    def test_strip_trailing_colons(self):
+        company = self.make_company("Software:")
+        self.assertEqual(_industry(company), "Software")
+
+    def test_ignore_noise_phrases(self):
+        company = self.make_company("Software: please visit our site")
+        self.assertEqual(_industry(company), "Software")
+
+        company2 = self.make_company("Please visit https://example.com")
+        self.assertEqual(_industry(company2), "Unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

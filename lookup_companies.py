@@ -43,6 +43,14 @@ def _industry(company: Company) -> str:
     # Remove URLs and other obvious web references
     part = re.sub(r"https?://\S+|www\.[^\s]+", "", part)
     part = part.strip()
+    # Strip trailing colons
+    part = re.sub(r":+$", "", part).strip()
+    # Remove common noise phrases such as "please visit" or "learn more"
+    noise_patterns = [r"please visit.*", r"learn more.*"]
+    for pattern in noise_patterns:
+        part = re.split(pattern, part, flags=re.IGNORECASE)[0].strip()
+    # Colon may appear before a removed phrase; strip again
+    part = re.sub(r":+$", "", part).strip()
 
     # Discard unusually long text fragments that likely aren't simple
     # industry names.
