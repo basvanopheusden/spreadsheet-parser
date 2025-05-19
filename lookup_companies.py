@@ -14,6 +14,12 @@ import re
 DEFAULT_MAX_LINES = 5
 DEFAULT_MAX_CONCURRENCY = 5
 
+# Mapping of lower-case industry aliases to their canonical names
+_INDUSTRY_ALIASES = {
+    "ai": "Artificial Intelligence",
+    "artificial intelligence (ai)": "Artificial Intelligence",
+}
+
 
 def _employee_count(company: Company) -> Optional[float]:
     """Return an approximate employee count for a company."""
@@ -27,11 +33,26 @@ def _employee_count(company: Company) -> Optional[float]:
 
 
 def _industry(company: Company) -> str:
-    """Return the first listed industry for the company."""
+    """Return a sanitized industry string for the company."""
+
     if not company.industries:
         return "Unknown"
-    parts = re.split(r"[;,]", company.industries)
-    return parts[0].strip() or "Unknown"
+
+    part = re.split(r"[;,]", company.industries)[0]
+    part = part.strip()
+    # Remove URLs and other obvious web references
+    part = re.sub(r"https?://\S+|www\.[^\s]+", "", part)
+    part = part.strip()
+
+    # Discard unusually long text fragments that likely aren't simple
+    # industry names.
+    if len(part.split()) > 4:
+        return "Unknown"
+
+    if not part:
+        return "Unknown"
+
+    return _INDUSTRY_ALIASES.get(part.lower(), part)
 
 
 def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
