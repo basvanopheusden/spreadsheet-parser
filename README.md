@@ -70,6 +70,32 @@ python lookup_companies.py path/to/companies.csv --max-lines 5 --max-concurrency
 
 This will print summaries for the first few companies in the spreadsheet.
 
+## Report Generation
+
+The lookup script finishes by producing a **final report** summarizing stance
+coverage for each industry. The report now includes basic statistics such as the
+number of supportive companies per industry, average stance values and a simple
+ASCII bar chart. When the optional ``scipy`` package is installed, a t-test is
+performed to compare employee counts of supportive vs. non-supportive
+companies.
+
+Example snippet:
+
+```text
+Final Report:
+- Manufacturing: supportive company found
+- Technology: no supportive company found
+Overall 2/3 companies are supportive.
+
+Supportive companies by industry:
+  Manufacturing: # (1/1)
+  Technology:  (0/1)
+
+Average stance per industry:
+  Manufacturing: 0.80
+  Technology: 0.40
+```
+
 ## Running Tests
 
 The project uses Python's built-in ``unittest`` framework. To execute the entire

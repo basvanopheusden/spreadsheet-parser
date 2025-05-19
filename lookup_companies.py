@@ -35,40 +35,78 @@ def _industry(company: Company) -> str:
 
 
 def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
-    """Generate a short summary of stance coverage per industry.
+    """Generate a more detailed summary of stance coverage per industry.
 
     ``stances`` should contain numeric values between 0 and 1 where higher
     numbers indicate stronger support for interoperability legislation.
     """
-    industry_map = {}
-    total_emp = []
-    support_emp = []
+
+    from collections import defaultdict
+    from statistics import mean
+
+    try:
+        from scipy.stats import ttest_ind
+    except Exception:  # pragma: no cover - scipy optional
+        ttest_ind = None
+
+    industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
+    support_emp: List[float] = []
+    nonsupport_emp: List[float] = []
 
     for company, stance in zip(companies, stances):
         ind = _industry(company)
-        industry_map.setdefault(ind, False)
+        info = industry_data[ind]
+        info["total"] += 1
+        if stance is not None:
+            info["stances"].append(stance)
+
         emp = _employee_count(company)
-        if emp is not None:
-            total_emp.append(emp)
         if stance is not None and stance >= 0.5:
-            industry_map[ind] = True
+            info["supportive"] += 1
             if emp is not None:
                 support_emp.append(emp)
+        else:
+            if emp is not None:
+                nonsupport_emp.append(emp)
 
     lines = ["Final Report:"]
-    for ind in sorted(industry_map):
-        if industry_map[ind]:
+    for ind in sorted(industry_data):
+        if industry_data[ind]["supportive"] > 0:
             lines.append(f"- {ind}: supportive company found")
         else:
             lines.append(f"- {ind}: no supportive company found")
 
-    if support_emp and total_emp:
-        avg_support = sum(support_emp) / len(support_emp)
-        avg_total = sum(total_emp) / len(total_emp)
-        if avg_support < avg_total:
+    total_support = sum(d["supportive"] for d in industry_data.values())
+    total_companies = sum(d["total"] for d in industry_data.values())
+    lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
+
+    lines.append("\nSupportive companies by industry:")
+    for ind in sorted(industry_data):
+        d = industry_data[ind]
+        bar = "#" * d["supportive"]
+        lines.append(f"  {ind}: {bar} ({d['supportive']}/{d['total']})")
+
+    lines.append("\nAverage stance per industry:")
+    for ind in sorted(industry_data):
+        st_list = industry_data[ind]["stances"]
+        if st_list:
+            lines.append(f"  {ind}: {mean(st_list):.2f}")
+        else:
+            lines.append(f"  {ind}: n/a")
+
+    if support_emp and (support_emp or nonsupport_emp):
+        avg_support_size = mean(support_emp)
+        avg_total_size = mean(support_emp + nonsupport_emp)
+        if avg_support_size < avg_total_size:
             lines.append("Supportive companies tend to be smaller based on employee counts.")
         else:
             lines.append("Supportive companies do not appear smaller based on employee counts.")
+
+        if ttest_ind and len(support_emp) >= 2 and len(nonsupport_emp) >= 2:
+            tstat, pval = ttest_ind(support_emp, nonsupport_emp, equal_var=False)
+            lines.append(f"T-test comparing company size: t={tstat:.2f}, p={pval:.3f}")
+        elif ttest_ind:
+            lines.append("Not enough data for t-test of company size.")
     else:
         lines.append("Insufficient data to compare company sizes.")
 

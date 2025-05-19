@@ -172,6 +172,9 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Manufacturing: supportive company found", report)
         self.assertIn("Technology: no supportive company found", report)
         self.assertIn("Software: supportive company found", report)
+        self.assertIn("Overall 2/3 companies are supportive", report)
+        self.assertIn("Supportive companies by industry", report)
+        self.assertIn("Average stance per industry", report)
         self.assertIn("Supportive companies tend to be smaller", report)
 
 
