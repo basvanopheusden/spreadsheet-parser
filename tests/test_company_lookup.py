@@ -6,7 +6,17 @@ from unittest.mock import patch
 
 # Provide a minimal openai stub if the real package is unavailable
 if 'openai' not in sys.modules:
-    openai_stub = types.SimpleNamespace(ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None))
+    def make_client(*args, **kwargs):
+        return types.SimpleNamespace(
+            chat=types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=lambda **kwargs: None)
+            )
+        )
+
+    openai_stub = types.SimpleNamespace(
+        ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None),
+        OpenAI=make_client,
+    )
     sys.modules['openai'] = openai_stub
 
 from parser import Company
@@ -14,11 +24,14 @@ from company_lookup import fetch_company_web_info
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
-    @patch('company_lookup.openai.ChatCompletion.create')
-    def test_prompt_includes_csv_details(self, mock_create):
-        mock_create.return_value = type('Resp', (), {
-            'choices': [type('Choice', (), {'message': {'content': 'ok'}})]
-        })
+    @patch('company_lookup.openai.OpenAI')
+    def test_prompt_includes_csv_details(self, mock_openai):
+        mock_client = mock_openai.return_value
+        mock_client.chat.completions.create.return_value = type(
+            'Resp',
+            (),
+            {'choices': [type('Choice', (), {'message': {'content': 'ok'}})]},
+        )
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
             company = Company(
@@ -39,7 +52,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
 
             fetch_company_web_info(company, model="test-model")
 
-            args, kwargs = mock_create.call_args
+            args, kwargs = mock_client.chat.completions.create.call_args
             self.assertEqual(kwargs['model'], 'test-model')
             user_content = kwargs['messages'][1]['content']
             self.assertIn("Acme Corp", user_content)
