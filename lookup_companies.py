@@ -39,29 +39,57 @@ def _industry(company: Company) -> str:
     if not company.industries:
         return "Unknown"
 
-    part = re.split(r"[;,]", company.industries)[0]
-    part = part.strip()
-    # Remove URLs and other obvious web references
-    part = re.sub(r"https?://\S+|www\.[^\s]+", "", part)
-    part = part.strip()
-    # Strip trailing colons
-    part = re.sub(r":+$", "", part).strip()
-    # Remove common noise phrases such as "please visit" or "learn more"
-    noise_patterns = [r"please visit.*", r"learn more.*"]
-    for pattern in noise_patterns:
-        part = re.split(pattern, part, flags=re.IGNORECASE)[0].strip()
-    # Colon may appear before a removed phrase; strip again
-    part = re.sub(r":+$", "", part).strip()
+    parts = re.split(r"[;,]", company.industries)
 
-    # Discard unusually long text fragments that likely aren't simple
-    # industry names.
-    if len(part.split()) > 4:
-        return "Unknown"
+    noise_patterns = [
+        r"please visit.*",
+        r"learn more.*",
+        r"such as.*",
+        r"for more.*",
+        r"based in.*",
+    ]
 
-    if not part:
-        return "Unknown"
+    skip_tokens = {
+        "cost",
+        "city",
+        "cities",
+        "entity",
+        "entities",
+        "next-gen",
+        "proprietary process",
+        "california",
+    }
 
-    return _INDUSTRY_ALIASES.get(part.lower(), part)
+    for raw in parts:
+        part = raw.strip()
+        # Remove URLs and other obvious web references
+        part = re.sub(r"https?://\S+|www\.[^\s]+", "", part).strip()
+        part = re.sub(r":+$", "", part).strip()
+        for pattern in noise_patterns:
+            part = re.split(pattern, part, flags=re.IGNORECASE)[0].strip()
+        part = re.sub(r":+$", "", part).strip()
+
+        if ":" in part:
+            maybe = part.split(":", 1)[1].strip()
+            if maybe and len(maybe.split()) <= 4:
+                part = maybe
+
+        if not part:
+            continue
+        if len(part.split()) > 4:
+            continue
+        if re.search(r"\d", part):
+            continue
+        if part.lower() in skip_tokens or re.search(
+            r"\b(?:city|cities|county|state|province|cost|entities?|next-gen|gpt-\d+|proprietary process)\b",
+            part,
+            re.IGNORECASE,
+        ):
+            continue
+
+        return _INDUSTRY_ALIASES.get(part.lower(), part)
+
+    return "Unknown"
 
 def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
     """Generate a more detailed summary of stance coverage per industry.
