@@ -93,3 +93,53 @@ def fetch_company_web_info(
         cache_file.write_text(content, encoding="utf-8")
     return content
 
+
+async def async_fetch_company_web_info(
+    company: Union[str, Company], model: Optional[str] = None
+) -> Optional[str]:
+    """Asynchronously fetch company info using OpenAI."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise EnvironmentError("OPENAI_API_KEY environment variable not set")
+
+    client = openai.AsyncOpenAI(api_key=api_key)
+
+    model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
+
+    if isinstance(company, str):
+        company_name = company
+        csv_details = ""
+    else:
+        company_name = company.organization_name
+        info = asdict(company)
+        info.pop("organization_name", None)
+        lines = [f"{k.replace('_', ' ').title()}: {v}" for k, v in info.items() if v]
+        csv_details = "\n".join(lines)
+
+    prompt = f"Search the web for information about {company_name}. "
+    if csv_details:
+        prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
+    prompt += (
+        "Summarize the company's business model, data strategy, and likely "
+        "stance on interoperability and access legislation."
+    )
+
+    response = await client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an assistant that can access web search results "
+                    "to provide up-to-date company information."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+    )
+
+    message = response.choices[0].message
+    if isinstance(message, dict):
+        return message.get("content")
+    return getattr(message, "content", None)
+
