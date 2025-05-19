@@ -36,3 +36,11 @@ serves as a convenient container for the parsed information.
 
 This setup can be extended to support more advanced analysis or integration with
 other tools that require structured data.
+
+## Optional Company Lookup Stub
+
+The repository also contains a simple helper, `fetch_company_web_info`, in
+`company_lookup.py`. It sends a prompt to OpenAI's API to retrieve a summary of a
+company from the web. The helper expects an ``OPENAI_API_KEY`` environment
+variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If no
+model is specified, it defaults to ``gpt-4o``.
