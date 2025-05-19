@@ -7,7 +7,13 @@ and later analysis.
 ## Usage
 
 1. Ensure you have Python 3.10 or newer installed.
-2. Prepare a CSV file with a header containing the following columns:
+2. Install the required dependencies using `pip`:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Prepare a CSV file with a header containing the following columns:
    - Organization Name
    - Organization Name URL
    - Estimated Revenue Range
@@ -21,7 +27,7 @@ and later analysis.
    - Headquarters Location
    - Description
    - CB Rank (Company)
-3. Import the reader function and parse your data:
+4. Import the reader function and parse your data:
 
 ```python
 from parser import read_companies_from_csv
@@ -68,7 +74,7 @@ The project uses Python's built-in ``unittest`` framework. To execute the entire
 test suite, run the following command from the repository root:
 
 ```bash
-python -m unittest discover tests
+python -m unittest discover -s tests -v
 ```
 
 No additional dependencies or environment variables are required for testing.
