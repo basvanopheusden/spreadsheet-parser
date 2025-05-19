@@ -66,6 +66,10 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     self.assertIn("key 'supportive'", user_content)
                     self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
                     self.assertIn("Mozilla", user_content)
+                    self.assertIn(
+                        "Finish with ONLY the JSON block on a new line",
+                        user_content,
+                    )
 
     def test_parse_llm_response(self):
         text = (
