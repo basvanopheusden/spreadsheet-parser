@@ -98,8 +98,8 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     numbers indicate stronger support for interoperability legislation.
     """
 
-    from collections import defaultdict
-    from statistics import mean
+    from collections import defaultdict, Counter
+    from statistics import mean, median
 
     try:
         from scipy.stats import ttest_ind
@@ -175,6 +175,24 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             lines.append("Not enough data for t-test of company size.")
     else:
         lines.append("Insufficient data to compare company sizes.")
+
+    industries_all = [_industry(c) for c in companies]
+    ipo_statuses = [c.ipo_status or "Unknown" for c in companies]
+    emp_values = [
+        e for c in companies if (e := _employee_count(c)) is not None
+    ]
+
+    lines.append("\nInput data statistics:")
+    if industries_all:
+        ind_name, ind_count = Counter(industries_all).most_common(1)[0]
+        lines.append(f"Most common industry: {ind_name} ({ind_count})")
+    if ipo_statuses:
+        ipo_name, ipo_count = Counter(ipo_statuses).most_common(1)[0]
+        lines.append(f"Most common IPO status: {ipo_name} ({ipo_count})")
+    if emp_values:
+        lines.append(
+            f"Employee counts (min/median/max): {int(min(emp_values))} / {int(median(emp_values))} / {int(max(emp_values))}"
+        )
 
     return "\n".join(lines)
 

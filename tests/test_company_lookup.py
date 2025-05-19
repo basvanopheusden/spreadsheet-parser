@@ -239,6 +239,10 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("  Technology:  (0/1)", report)
         self.assertIn("Average stance per industry", report)
         self.assertIn("Supportive companies tend to be smaller", report)
+        self.assertIn("Input data statistics", report)
+        self.assertIn("Most common industry: Manufacturing (1)", report)
+        self.assertIn("Most common IPO status: Unknown (3)", report)
+        self.assertIn("Employee counts (min/median/max): 75 / 175 / 750", report)
 
 
 class TestIndustryNormalization(unittest.TestCase):
