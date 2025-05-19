@@ -24,7 +24,7 @@ def fetch_company_web_info(
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY environment variable not set")
 
-    openai.api_key = api_key
+    client = openai.OpenAI(api_key=api_key)
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
 
@@ -46,7 +46,7 @@ def fetch_company_web_info(
         "stance on interoperability and access legislation."
     )
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model=model_name,
         messages=[
             {
