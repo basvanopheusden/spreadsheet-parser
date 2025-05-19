@@ -46,28 +46,26 @@ def fetch_company_web_info(
 
     if isinstance(company, str):
         company_name = company
-        csv_details = ""
+        csv_json = ""
     else:
         company_name = company.organization_name
-        info = asdict(company)
-        info.pop("organization_name", None)
-        lines = [f"{k.replace('_', ' ').title()}: {v}" for k, v in info.items() if v]
-        csv_details = "\n".join(lines)
+        csv_json = json.dumps(asdict(company), ensure_ascii=False, indent=2)
 
     prompt = f"Search the web for information about {company_name}. "
-    if csv_details:
-        prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
+    if csv_json:
+        prompt += (
+            "Here is the original spreadsheet row as JSON. "
+            "Correct any malformed values and respond with the cleaned data.\n"
+            "```json\n" + csv_json + "\n```\n"
+        )
     prompt += (
-        "Summarize the company's business model, data strategy, and likely "
-        "stance on interoperability and access legislation. "
-        "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
-        "End with a JSON code block containing sanitized versions of any provided fields "
-        "along with the numeric 'supportive' value. For example:\n"
-        "```json\n{\"organization_name\": \"Acme Corp\", \"supportive\": 0.8}\n``` "
+        "Then summarize the company's business model and data strategy and "
+        "rate their likely support for interoperability legislation on a scale "
+        "from 0 (strong opponent) to 1 (strong proponent). "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
-        "Finish with ONLY the JSON block on a new line."
-
+        "Return ONLY a JSON code block containing the sanitized fields along "
+        "with a numeric 'supportive' value."
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -136,27 +134,26 @@ async def async_fetch_company_web_info(
 
     if isinstance(company, str):
         company_name = company
-        csv_details = ""
+        csv_json = ""
     else:
         company_name = company.organization_name
-        info = asdict(company)
-        info.pop("organization_name", None)
-        lines = [f"{k.replace('_', ' ').title()}: {v}" for k, v in info.items() if v]
-        csv_details = "\n".join(lines)
+        csv_json = json.dumps(asdict(company), ensure_ascii=False, indent=2)
 
     prompt = f"Search the web for information about {company_name}. "
-    if csv_details:
-        prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
+    if csv_json:
+        prompt += (
+            "Here is the original spreadsheet row as JSON. "
+            "Correct any malformed values and respond with the cleaned data.\n"
+            "```json\n" + csv_json + "\n```\n"
+        )
     prompt += (
-        "Summarize the company's business model, data strategy, and likely "
-        "stance on interoperability and access legislation. "
-        "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
-        "End with a JSON code block containing sanitized versions of any provided fields "
-        "along with the numeric 'supportive' value. For example:\n"
-        "```json\n{\"organization_name\": \"Acme Corp\", \"supportive\": 0.8}\n``` "
+        "Then summarize the company's business model and data strategy and "
+        "rate their likely support for interoperability legislation on a scale "
+        "from 0 (strong opponent) to 1 (strong proponent). "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
-        "Finish with ONLY the JSON block on a new line."
+        "Return ONLY a JSON code block containing the sanitized fields along "
+        "with a numeric 'supportive' value."
     )
 
     cache_dir = Path.home() / "llm_cache"
