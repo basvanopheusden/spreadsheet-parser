@@ -33,6 +33,75 @@ def _employee_count(company: Company) -> Optional[float]:
     return sum(digits[:2]) / 2.0
 
 
+def _ipo_category(status: Optional[str]) -> str:
+    """Return a coarse IPO category for a status string."""
+    if not status:
+        return "Unknown"
+    status = status.lower()
+    if "public" in status or "post" in status:
+        return "Post-IPO"
+    if "private" in status or "pre" in status:
+        return "Pre-IPO"
+    return "Unknown"
+
+
+def _revenue_value(text: Optional[str]) -> Optional[float]:
+    """Return an approximate revenue midpoint in millions."""
+    if not text:
+        return None
+    text = text.replace(",", "").upper()
+    matches = re.findall(r"\$?\s*(\d+(?:\.\d+)?)\s*([MB])", text)
+    nums = []
+    for num, unit in matches:
+        try:
+            val = float(num)
+        except ValueError:
+            continue
+        if unit == "B":
+            val *= 1000
+        nums.append(val)
+    if nums:
+        if len(nums) == 1:
+            return nums[0]
+        return sum(nums) / len(nums)
+    m = re.search(r"(\d+(?:\.\d+)?)", text)
+    if m:
+        val = float(m.group(1))
+        if "B" in text:
+            val *= 1000
+        return val
+    return None
+
+
+def _revenue_category(text: Optional[str]) -> str:
+    val = _revenue_value(text)
+    if val is None:
+        return "Unknown"
+    if val < 10:
+        return "<$10M"
+    if val <= 100:
+        return "$10M-$100M"
+    return ">$100M"
+
+
+def _cb_rank_value(text: Optional[str]) -> Optional[int]:
+    if not text:
+        return None
+    m = re.search(r"\d+", text.replace(",", ""))
+    return int(m.group()) if m else None
+
+
+def _cb_rank_category(text: Optional[str]) -> str:
+    val = _cb_rank_value(text)
+    if val is None:
+        return "Unknown"
+    if val <= 1000:
+        return "Top 1k"
+    if val <= 5000:
+        return "Top 5k"
+    return "5k+"
+
+
 def _industry(company: Company) -> str:
     """Return a sanitized industry string for the company."""
 
@@ -107,6 +176,13 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
         ttest_ind = None
 
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
+    ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    revenue_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    rank_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    size_records = []  # (size_val, stance)
+    emp_vals: List[float] = []
+    rev_vals: List[float] = []
+    rank_vals: List[int] = []
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
 
@@ -117,6 +193,24 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
         if stance is not None:
             info["stances"].append(stance)
 
+        ipo_cat = _ipo_category(company.ipo_status)
+        ipo_info = ipo_data[ipo_cat]
+        ipo_info["total"] += 1
+        if stance is not None and stance >= 0.5:
+            ipo_info["supportive"] += 1
+
+        rev_cat = _revenue_category(company.estimated_revenue_range)
+        rev_info = revenue_data[rev_cat]
+        rev_info["total"] += 1
+        if stance is not None and stance >= 0.5:
+            rev_info["supportive"] += 1
+
+        rank_cat = _cb_rank_category(company.cb_rank)
+        rank_info = rank_data[rank_cat]
+        rank_info["total"] += 1
+        if stance is not None and stance >= 0.5:
+            rank_info["supportive"] += 1
+
         emp = _employee_count(company)
         if stance is not None and stance >= 0.5:
             info["supportive"] += 1
@@ -126,6 +220,16 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             if emp is not None:
                 nonsupport_emp.append(emp)
 
+        if emp is not None:
+            emp_vals.append(emp)
+        rev_val = _revenue_value(company.estimated_revenue_range)
+        if rev_val is not None:
+            rev_vals.append(rev_val)
+        rank_val = _cb_rank_value(company.cb_rank)
+        if rank_val is not None:
+            rank_vals.append(rank_val)
+
+        size_records.append((emp, rev_val, rank_val, stance))
     lines = ["Final Report:"]
     for ind in sorted(industry_data):
         if industry_data[ind]["supportive"] > 0:
@@ -175,6 +279,57 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             lines.append("Not enough data for t-test of company size.")
     else:
         lines.append("Insufficient data to compare company sizes.")
+
+    lines.append("\nSupport by IPO status:")
+    for cat in sorted(ipo_data):
+        d = ipo_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+
+    lines.append("\nSupport by revenue range:")
+    for cat in sorted(revenue_data):
+        d = revenue_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+
+    lines.append("\nSupport by CB rank:")
+    for cat in sorted(rank_data):
+        d = rank_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+
+    if size_records:
+        size_vals_support = []
+        size_vals_non = []
+        emp_min, emp_max = (min(emp_vals), max(emp_vals)) if emp_vals else (None, None)
+        rev_min, rev_max = (min(rev_vals), max(rev_vals)) if rev_vals else (None, None)
+        rank_min, rank_max = (min(rank_vals), max(rank_vals)) if rank_vals else (None, None)
+
+        def norm(val, lo, hi):
+            if val is None or lo is None or hi is None or hi == lo:
+                return None
+            return (val - lo) / (hi - lo)
+
+        for emp, rev, rank, stance in size_records:
+            parts = []
+            n = norm(emp, emp_min, emp_max)
+            if n is not None:
+                parts.append(n)
+            n = norm(rev, rev_min, rev_max)
+            if n is not None:
+                parts.append(n)
+            n = norm(rank, rank_min, rank_max)
+            if n is not None:
+                parts.append(1 - n)  # lower rank means larger
+            if parts:
+                size = sum(parts) / len(parts)
+                if stance is not None and stance >= 0.5:
+                    size_vals_support.append(size)
+                else:
+                    size_vals_non.append(size)
+
+        if size_vals_support:
+            lines.append("\nAverage company size metric (0=small, 1=large):")
+            lines.append(f"  Supportive: {mean(size_vals_support):.2f}")
+            if size_vals_non:
+                lines.append(f"  Non-supportive: {mean(size_vals_non):.2f}")
 
     industries_all = [_industry(c) for c in companies]
     ipo_statuses = [c.ipo_status or "Unknown" for c in companies]

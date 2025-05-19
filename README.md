@@ -79,7 +79,10 @@ The lookup script finishes by producing a **final report** summarizing stance
 coverage for each industry. The report now includes basic statistics such as the
 number of supportive companies per industry, average stance values and a simple
 ASCII bar chart. It also lists common categories found in the input data and
-provides a short summary of numeric value distributions. The text report is written to ``final_report.txt`` alongside a
+provides a short summary of numeric value distributions. Support levels are
+broken down by IPO status, revenue range and CB rank, and the output includes a
+simple company size metric that combines employee counts with these fields. The
+text report is written to ``final_report.txt`` alongside a
 CSV table of company summaries. When the optional ``scipy`` package is
 installed, a t-test is performed to compare employee counts of supportive vs.
 non-supportive companies.
@@ -103,6 +106,15 @@ Input data statistics:
 Most common industry: Manufacturing (1)
 Most common IPO status: Unknown (3)
 Employee counts (min/median/max): 75 / 175 / 750
+Support by IPO status:
+  Unknown: 2/3 supportive
+Support by revenue range:
+  Unknown: 2/3 supportive
+Support by CB rank:
+  Unknown: 2/3 supportive
+Average company size metric (0=small, 1=large):
+  Supportive: 0.07
+  Non-supportive: 1.00
 ```
 
 ## Running Tests
