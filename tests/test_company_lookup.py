@@ -23,7 +23,7 @@ if 'openai' not in sys.modules:
 
 from parser import Company
 from company_lookup import fetch_company_web_info, parse_llm_response
-from lookup_companies import generate_final_report
+from lookup_companies import generate_final_report, _industry
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
@@ -177,6 +177,33 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Average stance per industry", report)
         self.assertIn("Supportive companies tend to be smaller", report)
 
+
+class TestIndustryNormalization(unittest.TestCase):
+    def _make_company(self, industries: str) -> Company:
+        return Company(
+            organization_name="Dummy",
+            organization_name_url=None,
+            estimated_revenue_range=None,
+            ipo_status=None,
+            operating_status=None,
+            acquisition_status=None,
+            company_type=None,
+            number_of_employees=None,
+            full_description=None,
+            industries=industries,
+            headquarters_location=None,
+            description=None,
+            cb_rank=None,
+        )
+
+    def test_aliases_map_to_canonical(self):
+        base = self._make_company("Artificial Intelligence")
+        alias1 = self._make_company("AI")
+        alias2 = self._make_company("Artificial Intelligence (AI)")
+
+        self.assertEqual(_industry(base), "Artificial Intelligence")
+        self.assertEqual(_industry(alias1), "Artificial Intelligence")
+        self.assertEqual(_industry(alias2), "Artificial Intelligence")
 
 if __name__ == '__main__':
     unittest.main()
