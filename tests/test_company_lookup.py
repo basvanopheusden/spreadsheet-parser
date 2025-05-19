@@ -60,16 +60,20 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
             self.assertIn("Acme Corp", user_content)
             self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
             self.assertIn("Headquarters Location: New York, NY", user_content)
-            self.assertIn("key 'stance'", user_content)
+            self.assertIn("key 'supportive'", user_content)
+            self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
+            self.assertIn("Mozilla", user_content)
 
     def test_parse_llm_response(self):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"stance": "supportive"}'
+            '{"supportive": 0.75}'
             "\n```"
         )
-        self.assertEqual(parse_llm_response(text), "supportive")
+        result = parse_llm_response(text)
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result, 0.75)
 
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):
