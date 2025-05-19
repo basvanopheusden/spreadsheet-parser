@@ -59,9 +59,13 @@ def fetch_company_web_info(
     prompt += (
         "Summarize the company's business model, data strategy, and likely "
         "stance on interoperability and access legislation. "
-        "End with a JSON code block containing the key 'stance' and the "
-        "model's single-sentence assessment, for example:\n"
-        "```json\n{\"stance\": \"supportive\"}\n```"
+        "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
+        "End with a JSON code block containing the key 'supportive' with this number. "
+        "For example:\n"
+        "```json\n{\"supportive\": 0.8}\n``` "
+        "Mozilla and the Electronic Frontier Foundation would be close to 1, "
+        "while Meta and Palantir might be near 0."
+
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -127,9 +131,12 @@ async def async_fetch_company_web_info(
     prompt += (
         "Summarize the company's business model, data strategy, and likely "
         "stance on interoperability and access legislation. "
-        "End with a JSON code block containing the key 'stance' and the "
-        "model's single-sentence assessment, for example:\n"
-        "```json\n{\"stance\": \"supportive\"}\n```"
+        "Rate their support on a scale from 0 (strong opponent) to 1 (strong proponent). "
+        "End with a JSON code block containing the key 'supportive' with this number. "
+        "For example:\n"
+        "```json\n{\"supportive\": 0.8}\n``` "
+        "Mozilla and the Electronic Frontier Foundation would be close to 1, "
+        "while Meta and Palantir might be near 0."
     )
 
     response = await client.chat.completions.create(
@@ -152,8 +159,8 @@ async def async_fetch_company_web_info(
     return getattr(message, "content", None)
 
 
-def parse_llm_response(response: str) -> Optional[str]:
-    """Extract the stance value from the JSON markdown block in the LLM response."""
+def parse_llm_response(response: str) -> Optional[float]:
+    """Extract the numeric `supportive` value from the JSON markdown block in the LLM response."""
 
     if not response:
         return None
@@ -167,8 +174,29 @@ def parse_llm_response(response: str) -> Optional[str]:
     except json.JSONDecodeError:
         return None
 
-    stance = data.get("stance")
-    if stance is not None:
-        stance = str(stance).strip()
-    return stance
+    supportive = data.get("supportive")
+    if supportive is None:
+        return None
+
+    if isinstance(supportive, (int, float)):
+        value = float(supportive)
+        if 0.0 <= value <= 1.0:
+            return value
+        return None
+
+    text = str(supportive).strip().lower()
+    if text in {"true", "yes"}:
+        return 1.0
+    if text in {"false", "no"}:
+        return 0.0
+
+    match_num = re.search(r"-?\d*\.?\d+", text)
+    if match_num:
+        try:
+            value = float(match_num.group())
+            if 0.0 <= value <= 1.0:
+                return value
+        except ValueError:
+            pass
+    return None
 
