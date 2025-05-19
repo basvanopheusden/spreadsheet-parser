@@ -1,5 +1,7 @@
 import os
 import hashlib
+import asyncio
+import inspect
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union, Tuple
@@ -10,6 +12,80 @@ import ast
 from parser import Company
 
 import openai
+
+
+async def _fetch_with_cache(
+    company: Union[str, Company],
+    client,
+    model_name: str,
+    seed: Optional[int],
+    return_cache_info: bool,
+) -> Union[Optional[str], Tuple[Optional[str], bool]]:
+    """Shared helper to build the prompt, hit the cache and call the API."""
+
+    if isinstance(company, str):
+        company_name = company
+        csv_json = ""
+    else:
+        company_name = company.organization_name
+        csv_json = json.dumps(asdict(company), ensure_ascii=False, indent=2)
+
+    prompt = f"Search the web for information about {company_name}. "
+    if csv_json:
+        prompt += (
+            "Here is the original spreadsheet row as JSON. "
+            "Correct any malformed values and respond with the cleaned data.\n"
+            "```json\n" + csv_json + "\n```\n"
+        )
+    prompt += (
+        "Then summarize the company's business model and data strategy and "
+        "rate their likely support for interoperability legislation on a scale "
+        "from 0 (strong opponent) to 1 (strong proponent). "
+        "Mozilla and the Electronic Frontier Foundation would be close to 1, "
+        "while Meta and Palantir might be near 0. "
+        "Return ONLY a JSON code block containing the sanitized fields along "
+        "with a numeric 'supportive' value."
+    )
+
+    cache_dir = Path.home() / "llm_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.sha256(
+        f"{model_name}\n{prompt}\n{seed}".encode("utf-8")
+    ).hexdigest()
+    cache_file = cache_dir / f"{cache_key}.txt"
+    if cache_file.exists():
+        content = cache_file.read_text(encoding="utf-8")
+        return (content, True) if return_cache_info else content
+
+    kwargs = {
+        "model": model_name,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are an assistant that can access web search results "
+                    "to provide up-to-date company information."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+    }
+    if seed is not None:
+        kwargs["seed"] = seed
+
+    response = client.chat.completions.create(**kwargs)
+    if inspect.isawaitable(response):
+        response = await response
+
+    message = response.choices[0].message
+    if isinstance(message, dict):
+        content = message.get("content")
+    else:
+        content = getattr(message, "content", None)
+
+    if content is not None:
+        cache_file.write_text(content, encoding="utf-8")
+    return (content, False) if return_cache_info else content
 
 
 def fetch_company_web_info(
@@ -45,64 +121,15 @@ def fetch_company_web_info(
             except ValueError:
                 seed = None
 
-    if isinstance(company, str):
-        company_name = company
-        csv_json = ""
-    else:
-        company_name = company.organization_name
-        csv_json = json.dumps(asdict(company), ensure_ascii=False, indent=2)
-
-    prompt = f"Search the web for information about {company_name}. "
-    if csv_json:
-        prompt += (
-            "Here is the original spreadsheet row as JSON. "
-            "Correct any malformed values and respond with the cleaned data.\n"
-            "```json\n" + csv_json + "\n```\n"
+    return asyncio.run(
+        _fetch_with_cache(
+            company,
+            client,
+            model_name,
+            seed,
+            return_cache_info,
         )
-    prompt += (
-        "Then summarize the company's business model and data strategy and "
-        "rate their likely support for interoperability legislation on a scale "
-        "from 0 (strong opponent) to 1 (strong proponent). "
-        "Mozilla and the Electronic Frontier Foundation would be close to 1, "
-        "while Meta and Palantir might be near 0. "
-        "Return ONLY a JSON code block containing the sanitized fields along "
-        "with a numeric 'supportive' value."
     )
-
-    cache_dir = Path.home() / "llm_cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_key = hashlib.sha256(
-        f"{model_name}\n{prompt}\n{seed}".encode("utf-8")
-    ).hexdigest()
-    cache_file = cache_dir / f"{cache_key}.txt"
-    if cache_file.exists():
-        content = cache_file.read_text(encoding="utf-8")
-        return (content, True) if return_cache_info else content
-
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an assistant that can access web search results "
-                    "to provide up-to-date company information."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        **({"seed": seed} if seed is not None else {}),
-    )
-
-    message = response.choices[0].message
-    if isinstance(message, dict):
-        content = message.get("content")
-    else:
-        content = getattr(message, "content", None)
-
-    if content is not None:
-        cache_file.write_text(content, encoding="utf-8")
-    return (content, False) if return_cache_info else content
 
 
 async def async_fetch_company_web_info(
@@ -133,64 +160,13 @@ async def async_fetch_company_web_info(
             except ValueError:
                 seed = None
 
-    if isinstance(company, str):
-        company_name = company
-        csv_json = ""
-    else:
-        company_name = company.organization_name
-        csv_json = json.dumps(asdict(company), ensure_ascii=False, indent=2)
-
-    prompt = f"Search the web for information about {company_name}. "
-    if csv_json:
-        prompt += (
-            "Here is the original spreadsheet row as JSON. "
-            "Correct any malformed values and respond with the cleaned data.\n"
-            "```json\n" + csv_json + "\n```\n"
-        )
-    prompt += (
-        "Then summarize the company's business model and data strategy and "
-        "rate their likely support for interoperability legislation on a scale "
-        "from 0 (strong opponent) to 1 (strong proponent). "
-        "Mozilla and the Electronic Frontier Foundation would be close to 1, "
-        "while Meta and Palantir might be near 0. "
-        "Return ONLY a JSON code block containing the sanitized fields along "
-        "with a numeric 'supportive' value."
+    return await _fetch_with_cache(
+        company,
+        client,
+        model_name,
+        seed,
+        return_cache_info,
     )
-
-    cache_dir = Path.home() / "llm_cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_key = hashlib.sha256(
-        f"{model_name}\n{prompt}\n{seed}".encode("utf-8")
-    ).hexdigest()
-    cache_file = cache_dir / f"{cache_key}.txt"
-    if cache_file.exists():
-        content = cache_file.read_text(encoding="utf-8")
-        return (content, True) if return_cache_info else content
-
-    response = await client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an assistant that can access web search results "
-                    "to provide up-to-date company information."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        **({"seed": seed} if seed is not None else {}),
-    )
-
-    message = response.choices[0].message
-    if isinstance(message, dict):
-        content = message.get("content")
-    else:
-        content = getattr(message, "content", None)
-
-    if content is not None:
-        cache_file.write_text(content, encoding="utf-8")
-    return (content, False) if return_cache_info else content
 
 
 def _parse_support_value(value: object) -> Optional[float]:
