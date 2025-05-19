@@ -22,7 +22,7 @@ if 'openai' not in sys.modules:
     sys.modules['openai'] = openai_stub
 
 from parser import Company
-from company_lookup import fetch_company_web_info
+from company_lookup import fetch_company_web_info, parse_llm_response
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
@@ -60,6 +60,16 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
             self.assertIn("Acme Corp", user_content)
             self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
             self.assertIn("Headquarters Location: New York, NY", user_content)
+            self.assertIn("key 'stance'", user_content)
+
+    def test_parse_llm_response(self):
+        text = (
+            "Acme summary.\n"
+            "```json\n"
+            '{"stance": "supportive"}'
+            "\n```"
+        )
+        self.assertEqual(parse_llm_response(text), "supportive")
 
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):

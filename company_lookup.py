@@ -3,6 +3,8 @@ import hashlib
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Union
+import json
+import re
 
 from parser import Company
 
@@ -121,7 +123,10 @@ async def async_fetch_company_web_info(
         prompt += "Here is what we already know from a CSV:\n" + csv_details + "\n"
     prompt += (
         "Summarize the company's business model, data strategy, and likely "
-        "stance on interoperability and access legislation."
+        "stance on interoperability and access legislation. "
+        "End with a JSON code block containing the key 'stance' and the "
+        "model's single-sentence assessment, for example:\n"
+        "```json\n{\"stance\": \"supportive\"}\n```"
     )
 
     response = await client.chat.completions.create(
@@ -142,4 +147,25 @@ async def async_fetch_company_web_info(
     if isinstance(message, dict):
         return message.get("content")
     return getattr(message, "content", None)
+
+
+def parse_llm_response(response: str) -> Optional[str]:
+    """Extract the stance value from the JSON markdown block in the LLM response."""
+
+    if not response:
+        return None
+
+    match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+    if not match:
+        return None
+
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return None
+
+    stance = data.get("stance")
+    if stance is not None:
+        stance = str(stance).strip()
+    return stance
 
