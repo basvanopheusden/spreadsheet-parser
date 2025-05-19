@@ -202,13 +202,14 @@ async def _run_async(companies, max_concurrency: int) -> None:
             if cached:
                 cached_count += 1
             if content:
-
-            print(result)
-            parsed = parse_llm_response(result)
-            if parsed is None:
-                stances.append(None)
+                print(content)
+                parsed = parse_llm_response(content)
+                if parsed is None:
+                    stances.append(None)
+                else:
+                    stances.append(parsed.get("supportive"))
             else:
-                stances.append(parsed.get("supportive"))
+                stances.append(None)
 
         else:
             stances.append(None)
