@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Union, Tuple
 import json
 import re
+import ast
 
 from parser import Company
 
@@ -228,11 +229,16 @@ def parse_llm_response(response: str) -> Optional[dict]:
     if not match:
         return None
 
+    json_text = match.group(1).strip()
     try:
-        json_text = match.group(1).replace("'", '"')
         data = json.loads(json_text)
     except json.JSONDecodeError:
-        return None
+        try:
+            data = ast.literal_eval(json_text)
+        except Exception:
+            return None
+        if not isinstance(data, dict):
+            return None
 
     supportive = _parse_support_value(data.get("supportive"))
     data["supportive"] = supportive
