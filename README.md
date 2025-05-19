@@ -44,3 +44,16 @@ The repository also contains a simple helper, `fetch_company_web_info`, in
 company from the web. The helper expects an ``OPENAI_API_KEY`` environment
 variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If no
 model is specified, it defaults to ``gpt-4o``.
+
+## Lookup Script
+
+For convenience, the repository provides a small CLI script, `lookup_companies.py`,
+which reads a CSV file and uses `fetch_company_web_info` to retrieve summaries for
+each company. The script processes only a limited number of rows (default is 5)
+and issues a warning if the CSV contains more than 100 lines.
+
+```bash
+python lookup_companies.py path/to/companies.csv --max-lines 5
+```
+
+This will print summaries for the first few companies in the spreadsheet.
