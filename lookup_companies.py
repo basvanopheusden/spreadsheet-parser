@@ -11,7 +11,7 @@ from company_lookup import async_fetch_company_web_info, parse_llm_response
 import re
 
 
-DEFAULT_MAX_LINES = 5
+DEFAULT_MAX_LINES = 10
 DEFAULT_MAX_CONCURRENCY = 5
 
 
