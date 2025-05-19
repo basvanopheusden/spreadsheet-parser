@@ -60,5 +60,8 @@ def fetch_company_web_info(
         ],
     )
 
-    return response.choices[0].message.get("content")
+    message = response.choices[0].message
+    if isinstance(message, dict):
+        return message.get("content")
+    return getattr(message, "content", None)
 
