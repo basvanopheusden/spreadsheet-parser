@@ -69,16 +69,19 @@ python lookup_companies.py path/to/companies.csv --max-lines 5 --max-concurrency
 ```
 
 This will fetch summaries and then display only the final report. The output
-also notes how many responses were retrieved from the local cache.
+also notes how many responses were retrieved from the local cache. Use the
+`--output-dir` option to specify where a CSV table (`company_analysis.csv`) and
+the text report (`final_report.txt`) should be saved.
 
 ## Report Generation
 
 The lookup script finishes by producing a **final report** summarizing stance
 coverage for each industry. The report now includes basic statistics such as the
 number of supportive companies per industry, average stance values and a simple
-ASCII bar chart. When the optional ``scipy`` package is installed, a t-test is
-performed to compare employee counts of supportive vs. non-supportive
-companies.
+ASCII bar chart. The text report is written to ``final_report.txt`` alongside a
+CSV table of company summaries. When the optional ``scipy`` package is
+installed, a t-test is performed to compare employee counts of supportive vs.
+non-supportive companies.
 
 Example snippet:
 

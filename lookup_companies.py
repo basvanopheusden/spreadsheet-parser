@@ -4,6 +4,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
 import asyncio
+import csv
 from typing import List, Optional
 
 from parser import read_companies_from_csv, Company
@@ -161,6 +162,12 @@ def main() -> None:
         default=DEFAULT_MAX_CONCURRENCY,
         help=f"Maximum concurrent API requests (default: {DEFAULT_MAX_CONCURRENCY})",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path.cwd(),
+        help="Directory where the final report and table will be saved",
+    )
     args = parser.parse_args()
 
     companies = read_companies_from_csv(args.csv)
@@ -174,14 +181,15 @@ def main() -> None:
 
     to_process = companies[: args.max_lines]
 
-    asyncio.run(_run_async(to_process, args.max_concurrency))
+    asyncio.run(_run_async(to_process, args.max_concurrency, args.output_dir))
 
 
-async def _run_async(companies, max_concurrency: int) -> None:
+async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
 
     stances: List[Optional[float]] = []
     cached_count = 0
+    table_rows: List[List[str]] = []
 
     async def fetch(company):
         async with semaphore:
@@ -193,9 +201,17 @@ async def _run_async(companies, max_concurrency: int) -> None:
     tasks = [asyncio.create_task(fetch(c)) for c in companies]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for result in results:
+    for company, result in zip(companies, results):
         if isinstance(result, Exception):
             stances.append(None)
+            table_rows.append([
+                company.organization_name,
+                _industry(company),
+                "",
+                "Unknown",
+                "",
+                "",
+            ])
             continue
         elif result:
             content, cached = result
@@ -205,18 +221,72 @@ async def _run_async(companies, max_concurrency: int) -> None:
                 print(content)
                 parsed = parse_llm_response(content)
                 if parsed is None:
-                    stances.append(None)
+                    stance_val = None
                 else:
-                    stances.append(parsed.get("supportive"))
+                    stance_val = parsed.get("supportive")
+                stances.append(stance_val)
+                summary_text = re.split(r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL)[0].strip()
+                if stance_val is None:
+                    stance_label = "Unknown"
+                    rank_str = ""
+                else:
+                    stance_label = "Support" if stance_val >= 0.5 else "Oppose"
+                    rank_str = f"{stance_val:.2f}"
+                table_rows.append([
+                    company.organization_name,
+                    _industry(company),
+                    summary_text,
+                    stance_label,
+                    summary_text,
+                    rank_str,
+                ])
             else:
                 stances.append(None)
+                table_rows.append([
+                    company.organization_name,
+                    _industry(company),
+                    "",
+                    "Unknown",
+                    "",
+                    "",
+                ])
 
         else:
             stances.append(None)
+            table_rows.append([
+                company.organization_name,
+                _industry(company),
+                "",
+                "Unknown",
+                "",
+                "",
+            ])
 
     report = generate_final_report(companies, stances)
     print(report)
     print(f"Cached responses used: {cached_count}")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    table_path = output_dir / "company_analysis.csv"
+    with table_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "Company Name",
+                "Industry",
+                "Business Model Summary",
+                "Likely Stance on Interoperability",
+                "Qualitative Justification",
+                "Quantitative Ranking",
+            ]
+        )
+        for row in table_rows:
+            writer.writerow(row)
+
+    report_path = output_dir / "final_report.txt"
+    report_path.write_text(report, encoding="utf-8")
+    print(f"Output table saved to {table_path}")
+    print(f"Report saved to {report_path}")
 
 
 if __name__ == "__main__":
