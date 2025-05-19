@@ -23,6 +23,7 @@ if 'openai' not in sys.modules:
 
 from parser import Company
 from company_lookup import fetch_company_web_info, parse_llm_response
+from lookup_companies import generate_final_report
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
@@ -90,6 +91,64 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     fetch_company_web_info("Acme Corp", model="test-model")
 
         self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+
+
+class TestFinalReport(unittest.TestCase):
+    def test_generate_final_report(self):
+        companies = [
+            Company(
+                organization_name="Acme Corp",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees="100-250",
+                full_description=None,
+                industries="Manufacturing",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Globex Inc",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees="500-1000",
+                full_description=None,
+                industries="Technology",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Initech",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees="50-100",
+                full_description=None,
+                industries="Software",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+        ]
+
+        stances = ["supportive", "neutral", "supportive"]
+        report = generate_final_report(companies, stances)
+        self.assertIn("Manufacturing: supportive company found", report)
+        self.assertIn("Technology: no supportive company found", report)
+        self.assertIn("Software: supportive company found", report)
+        self.assertIn("Supportive companies tend to be smaller", report)
 
 
 if __name__ == '__main__':
