@@ -2,6 +2,8 @@ import os
 import sys
 import types
 import unittest
+import tempfile
+import pathlib
 from unittest.mock import patch
 
 # Provide a minimal openai stub if the real package is unavailable
@@ -58,6 +60,26 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
             self.assertIn("Acme Corp", user_content)
             self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
             self.assertIn("Headquarters Location: New York, NY", user_content)
+
+    @patch('company_lookup.openai.OpenAI')
+    def test_cache_reused_for_same_seed(self, mock_openai):
+        mock_client = mock_openai.return_value
+        mock_client.chat.completions.create.return_value = type(
+            'Resp',
+            (),
+            {'choices': [type('Choice', (), {'message': {'content': 'ok'}})]},
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch('pathlib.Path.home', return_value=pathlib.Path(tmpdir)):
+                with patch.dict(os.environ, {
+                    "OPENAI_API_KEY": "test-key",
+                    "OPENAI_SEED": "123",
+                }):
+                    fetch_company_web_info("Acme Corp", model="test-model")
+                    fetch_company_web_info("Acme Corp", model="test-model")
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
 
 
 if __name__ == '__main__':
