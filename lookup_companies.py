@@ -34,8 +34,12 @@ def _industry(company: Company) -> str:
     return parts[0].strip() or "Unknown"
 
 
-def generate_final_report(companies: List[Company], stances: List[Optional[str]]) -> str:
-    """Generate a short summary of stance coverage per industry."""
+def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
+    """Generate a short summary of stance coverage per industry.
+
+    ``stances`` should contain numeric values between 0 and 1 where higher
+    numbers indicate stronger support for interoperability legislation.
+    """
     industry_map = {}
     total_emp = []
     support_emp = []
@@ -46,7 +50,7 @@ def generate_final_report(companies: List[Company], stances: List[Optional[str]]
         emp = _employee_count(company)
         if emp is not None:
             total_emp.append(emp)
-        if stance and stance.lower().startswith("support"):
+        if stance is not None and stance >= 0.5:
             industry_map[ind] = True
             if emp is not None:
                 support_emp.append(emp)
@@ -101,7 +105,7 @@ def main() -> None:
 async def _run_async(companies, max_concurrency: int) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
 
-    stances: List[Optional[str]] = []
+    stances: List[Optional[float]] = []
 
     async def fetch(company):
         async with semaphore:

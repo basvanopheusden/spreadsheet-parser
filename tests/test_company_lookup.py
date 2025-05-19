@@ -36,11 +36,13 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
             {'choices': [type('Choice', (), {'message': {'content': 'ok'}})]},
         )
 
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
-            company = Company(
-                organization_name="Acme Corp",
-                organization_name_url="https://acme.example.com",
-                estimated_revenue_range="$10M-$50M",
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch('pathlib.Path.home', return_value=pathlib.Path(tmpdir)):
+                with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+                    company = Company(
+                        organization_name="Acme Corp",
+                        organization_name_url="https://acme.example.com",
+                        estimated_revenue_range="$10M-$50M",
                 ipo_status="Private",
                 operating_status="Operating",
                 acquisition_status=None,
@@ -51,19 +53,19 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                 headquarters_location="New York, NY",
                 description="Leading gadget manufacturer",
                 cb_rank="1",
-            )
+                    )
 
-            fetch_company_web_info(company, model="test-model")
+                    fetch_company_web_info(company, model="test-model")
 
-            args, kwargs = mock_client.chat.completions.create.call_args
-            self.assertEqual(kwargs['model'], 'test-model')
-            user_content = kwargs['messages'][1]['content']
-            self.assertIn("Acme Corp", user_content)
-            self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
-            self.assertIn("Headquarters Location: New York, NY", user_content)
-            self.assertIn("key 'supportive'", user_content)
-            self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
-            self.assertIn("Mozilla", user_content)
+                    args, kwargs = mock_client.chat.completions.create.call_args
+                    self.assertEqual(kwargs['model'], 'test-model')
+                    user_content = kwargs['messages'][1]['content']
+                    self.assertIn("Acme Corp", user_content)
+                    self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
+                    self.assertIn("Headquarters Location: New York, NY", user_content)
+                    self.assertIn("key 'supportive'", user_content)
+                    self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
+                    self.assertIn("Mozilla", user_content)
 
     def test_parse_llm_response(self):
         text = (
@@ -75,6 +77,24 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result, 0.75)
+
+    def test_parse_llm_response_edge_cases(self):
+        self.assertIsNone(parse_llm_response("nonsense"))
+
+        bad_json = "```json\n{bad}\n```"
+        self.assertIsNone(parse_llm_response(bad_json))
+
+        text_yes = "```json\n{\"supportive\": \"yes\"}\n```"
+        self.assertEqual(parse_llm_response(text_yes), 1.0)
+
+        text_no = "```json\n{\"supportive\": \"no\"}\n```"
+        self.assertEqual(parse_llm_response(text_no), 0.0)
+
+        text_str_number = "```json\n{\"supportive\": \"0.25\"}\n```"
+        self.assertAlmostEqual(parse_llm_response(text_str_number), 0.25)
+
+        text_out_of_range = "```json\n{\"supportive\": 1.5}\n```"
+        self.assertIsNone(parse_llm_response(text_out_of_range))
 
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):
@@ -147,7 +167,7 @@ class TestFinalReport(unittest.TestCase):
             ),
         ]
 
-        stances = ["supportive", "neutral", "supportive"]
+        stances = [0.8, 0.4, 0.9]
         report = generate_final_report(companies, stances)
         self.assertIn("Manufacturing: supportive company found", report)
         self.assertIn("Technology: no supportive company found", report)
