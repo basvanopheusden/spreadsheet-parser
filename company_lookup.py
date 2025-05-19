@@ -165,12 +165,13 @@ def parse_llm_response(response: str) -> Optional[float]:
     if not response:
         return None
 
-    match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.IGNORECASE | re.DOTALL)
     if not match:
         return None
 
     try:
-        data = json.loads(match.group(1))
+        json_text = match.group(1).replace("'", '"')
+        data = json.loads(json_text)
     except json.JSONDecodeError:
         return None
 

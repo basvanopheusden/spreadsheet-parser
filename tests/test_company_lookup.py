@@ -96,6 +96,28 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         text_out_of_range = "```json\n{\"supportive\": 1.5}\n```"
         self.assertIsNone(parse_llm_response(text_out_of_range))
 
+    def test_parse_llm_response_no_label(self):
+        text = (
+            "Intro.\n"
+            "```\n"
+            '{"supportive": 0.6}'
+            "\n```"
+        )
+        result = parse_llm_response(text)
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result, 0.6)
+
+    def test_parse_llm_response_single_quotes(self):
+        text = (
+            "Intro.\n"
+            "```json\n"
+            "{'supportive': '0.3'}"
+            "\n```"
+        )
+        result = parse_llm_response(text)
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result, 0.3)
+
     @patch('company_lookup.openai.OpenAI')
     def test_cache_reused_for_same_seed(self, mock_openai):
         mock_client = mock_openai.return_value
