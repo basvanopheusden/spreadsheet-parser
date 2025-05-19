@@ -35,6 +35,24 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
         self.assertEqual(len(companies), 3)
         self.assertIsNone(companies[0].full_description)
 
+    def test_extra_column_ignored(self):
+        path = pathlib.Path(__file__).parent / "data" / "companies_malformed_extra_column.csv"
+        companies = read_companies_from_csv(path)
+        self.assertEqual(len(companies), 2)
+        self.assertEqual(companies[0].organization_name, "Acme Corp")
+
+    def test_unbalanced_quote(self):
+        path = pathlib.Path(__file__).parent / "data" / "companies_malformed_quote.csv"
+        companies = read_companies_from_csv(path)
+        self.assertEqual(len(companies), 1)
+        self.assertTrue(companies[0].organization_name.startswith("Broken Co"))
+
+    def test_misencoded_text(self):
+        path = pathlib.Path(__file__).parent / "data" / "companies_malformed_encoding.csv"
+        companies = read_companies_from_csv(path)
+        self.assertEqual(len(companies), 1)
+        self.assertIn("√", companies[0].organization_name)
+
 
 if __name__ == "__main__":
     unittest.main()
