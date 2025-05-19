@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 import asyncio
 from typing import List, Optional
+import os
 
 from parser import read_companies_from_csv, Company
 from company_lookup import async_fetch_company_web_info, parse_llm_response
@@ -13,6 +14,7 @@ import re
 
 DEFAULT_MAX_LINES = 5
 DEFAULT_MAX_CONCURRENCY = 5
+DEFAULT_MAX_BAR_WIDTH = 20
 
 
 def _employee_count(company: Company) -> Optional[float]:
@@ -81,9 +83,24 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
 
     lines.append("\nSupportive companies by industry:")
+    env_width = os.getenv("MAX_BAR_WIDTH")
+    max_bar_width = DEFAULT_MAX_BAR_WIDTH
+    if env_width is not None:
+        try:
+            max_bar_width = int(env_width)
+        except ValueError:
+            max_bar_width = DEFAULT_MAX_BAR_WIDTH
+    max_support = max((d["supportive"] for d in industry_data.values()), default=0)
+    if max_support == 0:
+        max_support = 1
     for ind in sorted(industry_data):
         d = industry_data[ind]
-        bar = "#" * d["supportive"]
+        proportion = d["supportive"] / max_support
+        bar_len = int(round(proportion * max_bar_width)) if d["supportive"] else 0
+        # Ensure at least one character is shown for non-zero counts
+        if d["supportive"] > 0 and bar_len == 0:
+            bar_len = 1
+        bar = "#" * bar_len
         lines.append(f"  {ind}: {bar} ({d['supportive']}/{d['total']})")
 
     lines.append("\nAverage stance per industry:")

@@ -77,7 +77,8 @@ coverage for each industry. The report now includes basic statistics such as the
 number of supportive companies per industry, average stance values and a simple
 ASCII bar chart. When the optional ``scipy`` package is installed, a t-test is
 performed to compare employee counts of supportive vs. non-supportive
-companies.
+companies. The bar width can be adjusted via the ``MAX_BAR_WIDTH`` environment
+variable, which defaults to ``20``.
 
 Example snippet:
 
@@ -88,7 +89,7 @@ Final Report:
 Overall 2/3 companies are supportive.
 
 Supportive companies by industry:
-  Manufacturing: # (1/1)
+  Manufacturing: #################### (1/1)
   Technology:  (0/1)
 
 Average stance per industry:

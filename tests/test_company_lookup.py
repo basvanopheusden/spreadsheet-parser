@@ -168,12 +168,16 @@ class TestFinalReport(unittest.TestCase):
         ]
 
         stances = [0.8, 0.4, 0.9]
-        report = generate_final_report(companies, stances)
+        with patch.dict(os.environ, {"MAX_BAR_WIDTH": "10"}):
+            report = generate_final_report(companies, stances)
         self.assertIn("Manufacturing: supportive company found", report)
         self.assertIn("Technology: no supportive company found", report)
         self.assertIn("Software: supportive company found", report)
         self.assertIn("Overall 2/3 companies are supportive", report)
         self.assertIn("Supportive companies by industry", report)
+        self.assertIn("  Manufacturing: ########## (1/1)", report)
+        self.assertIn("  Software: ########## (1/1)", report)
+        self.assertIn("  Technology:  (0/1)", report)
         self.assertIn("Average stance per industry", report)
         self.assertIn("Supportive companies tend to be smaller", report)
 
