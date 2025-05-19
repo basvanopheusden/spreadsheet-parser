@@ -91,6 +91,49 @@ def _industry(company: Company) -> str:
 
     return "Unknown"
 
+
+def _cb_rank_value(company: Company) -> Optional[float]:
+    """Return the Crunchbase rank as a float if available."""
+    text = (company.cb_rank or "").replace(",", "")
+    match = re.search(r"\d+(?:\.\d+)?", text)
+    if match:
+        try:
+            return float(match.group())
+        except ValueError:
+            return None
+    return None
+
+
+def _revenue_value(company: Company) -> Optional[float]:
+    """Parse the estimated revenue range and return an average in millions."""
+    text = (company.estimated_revenue_range or "").replace(",", "").upper()
+    nums = re.findall(r"\d+(?:\.\d+)?", text)
+    if not nums:
+        return None
+    values = [float(n) for n in nums]
+    avg = sum(values) / len(values)
+    if "B" in text or "BILLION" in text:
+        avg *= 1000
+    return avg
+
+
+def _company_size(company: Company) -> Optional[float]:
+    """Compute a simple size metric using employees, revenue and CB rank."""
+    emp = _employee_count(company)
+    rev = _revenue_value(company)
+    rank = _cb_rank_value(company)
+
+    scores = []
+    if emp is not None:
+        scores.append(emp)
+    if rev is not None:
+        scores.append(rev)
+    if rank is not None:
+        scores.append(max(0.0, 10000 - rank))
+    if not scores:
+        return None
+    return sum(scores) / len(scores)
+
 def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
@@ -107,8 +150,13 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
         ttest_ind = None
 
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
+    ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    revenue_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    rank_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
+    support_size: List[float] = []
+    nonsupport_size: List[float] = []
 
     for company, stance in zip(companies, stances):
         ind = _industry(company)
@@ -118,13 +166,47 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             info["stances"].append(stance)
 
         emp = _employee_count(company)
-        if stance is not None and stance >= 0.5:
+        size_score = _company_size(company)
+        is_supportive = stance is not None and stance >= 0.5
+
+        if is_supportive:
             info["supportive"] += 1
             if emp is not None:
                 support_emp.append(emp)
+            if size_score is not None:
+                support_size.append(size_score)
         else:
             if emp is not None:
                 nonsupport_emp.append(emp)
+            if size_score is not None:
+                nonsupport_size.append(size_score)
+
+        ipo_cat = "Post-IPO" if (company.ipo_status or "").strip().lower() == "public" else "Pre-IPO"
+        ipo_data[ipo_cat]["total"] += 1
+        if is_supportive:
+            ipo_data[ipo_cat]["supportive"] += 1
+
+        rev_val = _revenue_value(company)
+        if rev_val is None:
+            rev_cat = "Unknown"
+        elif rev_val >= 50:
+            rev_cat = "Over $50M"
+        else:
+            rev_cat = "Under $50M"
+        revenue_data[rev_cat]["total"] += 1
+        if is_supportive:
+            revenue_data[rev_cat]["supportive"] += 1
+
+        rank_val = _cb_rank_value(company)
+        if rank_val is None:
+            rank_cat = "Unknown"
+        elif rank_val <= 5000:
+            rank_cat = "Top 5k"
+        else:
+            rank_cat = "5k+"
+        rank_data[rank_cat]["total"] += 1
+        if is_supportive:
+            rank_data[rank_cat]["supportive"] += 1
 
     lines = ["Final Report:"]
     for ind in sorted(industry_data):
@@ -160,6 +242,21 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
         else:
             lines.append(f"  {ind}: n/a")
 
+    lines.append("\nSupport by IPO status:")
+    for cat in sorted(ipo_data):
+        d = ipo_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']}")
+
+    lines.append("\nSupport by revenue:")
+    for cat in sorted(revenue_data):
+        d = revenue_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']}")
+
+    lines.append("\nSupport by CB rank:")
+    for cat in sorted(rank_data):
+        d = rank_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']}")
+
     if support_emp and (support_emp or nonsupport_emp):
         avg_support_size = mean(support_emp)
         avg_total_size = mean(support_emp + nonsupport_emp)
@@ -175,6 +272,20 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             lines.append("Not enough data for t-test of company size.")
     else:
         lines.append("Insufficient data to compare company sizes.")
+
+    if support_size and (support_size or nonsupport_size):
+        avg_support_metric = mean(support_size)
+        avg_total_metric = mean(support_size + nonsupport_size)
+        if avg_support_metric < avg_total_metric:
+            lines.append(
+                "Supportive companies appear smaller based on combined size metric."
+            )
+        else:
+            lines.append(
+                "Supportive companies do not appear smaller based on combined size metric."
+            )
+    else:
+        lines.append("Insufficient data to compare combined size metric.")
 
     return "\n".join(lines)
 

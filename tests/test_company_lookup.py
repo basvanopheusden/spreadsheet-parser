@@ -238,7 +238,12 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("  Software: ########## (1/1)", report)
         self.assertIn("  Technology:  (0/1)", report)
         self.assertIn("Average stance per industry", report)
-        self.assertIn("Supportive companies tend to be smaller", report)
+        self.assertIn("Support by IPO status", report)
+        self.assertIn("Pre-IPO: 2/3", report)
+        self.assertIn("Support by revenue", report)
+        self.assertIn("Support by CB rank", report)
+        self.assertIn("Supportive companies tend to be smaller based on employee counts.", report)
+        self.assertIn("Supportive companies appear smaller based on combined size metric.", report)
 
 
 class TestIndustryNormalization(unittest.TestCase):

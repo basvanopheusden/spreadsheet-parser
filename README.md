@@ -76,12 +76,14 @@ the text report (`final_report.txt`) should be saved.
 ## Report Generation
 
 The lookup script finishes by producing a **final report** summarizing stance
-coverage for each industry. The report now includes basic statistics such as the
-number of supportive companies per industry, average stance values and a simple
-ASCII bar chart. The text report is written to ``final_report.txt`` alongside a
-CSV table of company summaries. When the optional ``scipy`` package is
-installed, a t-test is performed to compare employee counts of supportive vs.
-non-supportive companies.
+coverage for each industry. The report now includes additional breakdowns such
+as support by IPO status, revenue range and CB rank, along with a simple company
+size metric that combines these factors. Basic statistics such as the number of
+supportive companies per industry, average stance values and an ASCII bar chart
+are shown. The text report is written to ``final_report.txt`` alongside a CSV
+table of company summaries. When the optional ``scipy`` package is installed,
+a t-test is performed to compare employee counts of supportive vs. non-supportive
+companies.
 
 Example snippet:
 
@@ -98,6 +100,13 @@ Supportive companies by industry:
 Average stance per industry:
   Manufacturing: 0.80
   Technology: 0.40
+
+Support by IPO status:
+  Pre-IPO: 2/3
+Support by revenue:
+  Unknown: 2/3
+Support by CB rank:
+  Unknown: 2/3
 ```
 
 ## Running Tests
