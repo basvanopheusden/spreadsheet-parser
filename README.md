@@ -49,3 +49,15 @@ You may provide just the company name or pass a `Company` object returned from
 `read_companies_from_csv`. When a dataclass is supplied, all details from the CSV
 are included in the prompt sent to the LLM so that it can give a more informed
 summary.
+## Lookup Script
+
+For convenience, the repository provides a small CLI script, `lookup_companies.py`,
+which reads a CSV file and uses `fetch_company_web_info` to retrieve summaries for
+each company. The script processes only a limited number of rows (default is 5)
+and issues a warning if the CSV contains more than 100 lines.
+
+```bash
+python lookup_companies.py path/to/companies.csv --max-lines 5
+```
+
+This will print summaries for the first few companies in the spreadsheet.
