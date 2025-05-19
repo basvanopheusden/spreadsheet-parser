@@ -64,6 +64,16 @@ class TestIndustryHelper(unittest.TestCase):
         company2 = self.make_company("Please visit https://example.com")
         self.assertEqual(_industry(company2), "Unknown")
 
+    def test_additional_noise_handling(self):
+        company = self.make_company("California")
+        self.assertEqual(_industry(company), "Unknown")
+
+        company2 = self.make_company("such as GPT-3")
+        self.assertEqual(_industry(company2), "Unknown")
+
+        company3 = self.make_company("Location: AI")
+        self.assertEqual(_industry(company3), "Artificial Intelligence")
+
 
 if __name__ == "__main__":
     unittest.main()
