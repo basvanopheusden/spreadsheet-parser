@@ -24,9 +24,16 @@ def fetch_company_web_info(
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY environment variable not set")
 
-    openai.api_key = api_key
-
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
+
+    # Determine whether we're using the new openai>=1.0 client interface
+    openai_client = None
+    if hasattr(openai, "OpenAI"):
+        # openai>=1.0.0
+        openai_client = openai.OpenAI(api_key=api_key)
+    else:
+        # Older openai versions use module-level api_key
+        openai.api_key = api_key
 
     if isinstance(company, str):
         company_name = company
@@ -46,19 +53,30 @@ def fetch_company_web_info(
         "stance on interoperability and access legislation."
     )
 
-    response = openai.ChatCompletion.create(
-        model=model_name,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an assistant that can access web search results "
-                    "to provide up-to-date company information."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-    )
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are an assistant that can access web search results "
+                "to provide up-to-date company information."
+            ),
+        },
+        {"role": "user", "content": prompt},
+    ]
 
-    return response.choices[0].message.get("content")
+    if openai_client:
+        response = openai_client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+        )
+    else:
+        response = openai.ChatCompletion.create(
+            model=model_name,
+            messages=messages,
+        )
+
+    message = response.choices[0].message
+    if isinstance(message, dict):
+        return message.get("content")
+    return getattr(message, "content", None)
 

@@ -7,7 +7,11 @@ and later analysis.
 ## Usage
 
 1. Ensure you have Python 3.10 or newer installed.
-2. Prepare a CSV file with a header containing the following columns:
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Prepare a CSV file with a header containing the following columns:
    - Organization Name
    - Organization Name URL
    - Estimated Revenue Range
@@ -21,7 +25,7 @@ and later analysis.
    - Headquarters Location
    - Description
    - CB Rank (Company)
-3. Import the reader function and parse your data:
+4. Import the reader function and parse your data:
 
 ```python
 from parser import read_companies_from_csv
