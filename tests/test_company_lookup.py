@@ -66,15 +66,14 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     self.assertEqual(kwargs['model'], 'test-model')
                     user_content = kwargs['messages'][1]['content']
                     self.assertIn("Acme Corp", user_content)
-                    self.assertIn("Estimated Revenue Range: $10M-$50M", user_content)
-                    self.assertIn("Headquarters Location: New York, NY", user_content)
+                    self.assertIn('"estimated_revenue_range": "$10M-$50M"', user_content)
+                    self.assertIn('"headquarters_location": "New York, NY"', user_content)
                     self.assertIn("'supportive'", user_content)
                     self.assertIn("scale from 0 (strong opponent) to 1 (strong proponent)", user_content)
                     self.assertIn("Mozilla", user_content)
-                    self.assertIn(
-                        "Finish with ONLY the JSON block on a new line",
-                        user_content,
-                    )
+                    self.assertIn("Palantir", user_content)
+                    self.assertIn("Return ONLY a JSON code block", user_content)
+                    self.assertIn("```json", user_content)
 
     def test_parse_llm_response(self):
         text = (
