@@ -81,9 +81,18 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
 
     lines.append("\nSupportive companies by industry:")
+    max_bar_width = 20
+    max_support = max((d["supportive"] for d in industry_data.values()), default=0)
+    if max_support == 0:
+        max_support = 1
     for ind in sorted(industry_data):
         d = industry_data[ind]
-        bar = "#" * d["supportive"]
+        proportion = d["supportive"] / max_support
+        bar_len = int(round(proportion * max_bar_width)) if d["supportive"] else 0
+        # Ensure at least one character is shown for non-zero counts
+        if d["supportive"] > 0 and bar_len == 0:
+            bar_len = 1
+        bar = "#" * bar_len
         lines.append(f"  {ind}: {bar} ({d['supportive']}/{d['total']})")
 
     lines.append("\nAverage stance per industry:")
