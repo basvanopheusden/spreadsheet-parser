@@ -105,9 +105,16 @@ def fetch_company_web_info(
 
 
 async def async_fetch_company_web_info(
-    company: Union[str, Company], model: Optional[str] = None
+    company: Union[str, Company],
+    model: Optional[str] = None,
+    *,
+    seed: Optional[int] = None,
 ) -> Optional[str]:
-    """Asynchronously fetch company info using OpenAI."""
+    """Asynchronously fetch company info using OpenAI.
+
+    This mirrors :func:`fetch_company_web_info` but operates asynchronously and
+    uses the same file-based cache to avoid duplicate API calls.
+    """
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY environment variable not set")
@@ -115,6 +122,14 @@ async def async_fetch_company_web_info(
     client = openai.AsyncOpenAI(api_key=api_key)
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
+
+    if seed is None:
+        env_seed = os.getenv("OPENAI_SEED")
+        if env_seed is not None:
+            try:
+                seed = int(env_seed)
+            except ValueError:
+                seed = None
 
     if isinstance(company, str):
         company_name = company
@@ -141,6 +156,15 @@ async def async_fetch_company_web_info(
         "Finish with ONLY the JSON block on a new line."
     )
 
+    cache_dir = Path.home() / "llm_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_key = hashlib.sha256(
+        f"{model_name}\n{prompt}\n{seed}".encode("utf-8")
+    ).hexdigest()
+    cache_file = cache_dir / f"{cache_key}.txt"
+    if cache_file.exists():
+        return cache_file.read_text(encoding="utf-8")
+
     response = await client.chat.completions.create(
         model=model_name,
         messages=[
@@ -153,12 +177,18 @@ async def async_fetch_company_web_info(
             },
             {"role": "user", "content": prompt},
         ],
+        **({"seed": seed} if seed is not None else {}),
     )
 
     message = response.choices[0].message
     if isinstance(message, dict):
-        return message.get("content")
-    return getattr(message, "content", None)
+        content = message.get("content")
+    else:
+        content = getattr(message, "content", None)
+
+    if content is not None:
+        cache_file.write_text(content, encoding="utf-8")
+    return content
 
 
 def parse_llm_response(response: str) -> Optional[float]:

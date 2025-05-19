@@ -4,7 +4,8 @@ import types
 import unittest
 import tempfile
 import pathlib
-from unittest.mock import patch
+import asyncio
+from unittest.mock import patch, AsyncMock
 
 # Provide a minimal openai stub if the real package is unavailable
 if 'openai' not in sys.modules:
@@ -22,7 +23,11 @@ if 'openai' not in sys.modules:
     sys.modules['openai'] = openai_stub
 
 from parser import Company
-from company_lookup import fetch_company_web_info, parse_llm_response
+from company_lookup import (
+    fetch_company_web_info,
+    async_fetch_company_web_info,
+    parse_llm_response,
+)
 from lookup_companies import generate_final_report, _industry
 
 
@@ -139,6 +144,30 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                 }):
                     fetch_company_web_info("Acme Corp", model="test-model")
                     fetch_company_web_info("Acme Corp", model="test-model")
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+
+    @patch('company_lookup.openai.AsyncOpenAI', create=True)
+    def test_async_cache_reused_for_same_seed(self, mock_async_openai):
+        mock_client = mock_async_openai.return_value
+
+        async def fake_create(**kwargs):
+            return type(
+                'Resp',
+                (),
+                {'choices': [type('Choice', (), {'message': {'content': 'ok'}})]},
+            )
+
+        mock_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch('pathlib.Path.home', return_value=pathlib.Path(tmpdir)):
+                with patch.dict(os.environ, {
+                    'OPENAI_API_KEY': 'test-key',
+                    'OPENAI_SEED': '123',
+                }):
+                    asyncio.run(async_fetch_company_web_info('Acme Corp', model='test-model'))
+                    asyncio.run(async_fetch_company_web_info('Acme Corp', model='test-model'))
 
         self.assertEqual(mock_client.chat.completions.create.call_count, 1)
 

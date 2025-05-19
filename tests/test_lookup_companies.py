@@ -1,4 +1,21 @@
 import unittest
+import sys
+import types
+
+if 'openai' not in sys.modules:
+    def make_client(*args, **kwargs):
+        return types.SimpleNamespace(
+            chat=types.SimpleNamespace(
+                completions=types.SimpleNamespace(create=lambda **kwargs: None)
+            )
+        )
+
+    openai_stub = types.SimpleNamespace(
+        ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None),
+        OpenAI=make_client,
+    )
+    sys.modules['openai'] = openai_stub
+
 from parser import Company
 from lookup_companies import _industry
 
