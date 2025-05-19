@@ -197,7 +197,11 @@ async def _run_async(companies, max_concurrency: int) -> None:
             stances.append(None)
         elif result:
             print(result)
-            stances.append(parse_llm_response(result))
+            parsed = parse_llm_response(result)
+            if parsed is None:
+                stances.append(None)
+            else:
+                stances.append(parsed.get("supportive"))
         else:
             print("No summary returned.")
             stances.append(None)
