@@ -188,6 +188,7 @@ def generate_final_report(
 
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
     subcat_data = defaultdict(lambda: {"supportive": 0, "total": 0})
+    subcat_top = defaultdict(list)
     ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     revenue_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     rank_data = defaultdict(lambda: {"supportive": 0, "total": 0})
@@ -209,8 +210,10 @@ def generate_final_report(
         sc = subcat or "Uncategorized"
         sc_info = subcat_data[sc]
         sc_info["total"] += 1
-        if stance is not None and stance >= 0.5:
-            sc_info["supportive"] += 1
+        if stance is not None:
+            subcat_top[sc].append((stance, company.organization_name))
+            if stance >= 0.5:
+                sc_info["supportive"] += 1
 
         ipo_cat = _ipo_category(company.ipo_status)
         ipo_info = ipo_data[ipo_cat]
@@ -287,6 +290,14 @@ def generate_final_report(
     for cat in sorted(subcat_data):
         d = subcat_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+        top = sorted(
+            (pair for pair in subcat_top.get(cat, []) if pair[0] is not None),
+            key=lambda x: x[0],
+            reverse=True,
+        )[:3]
+        if top:
+            names = ", ".join(name for _, name in top)
+            lines.append(f"    Top companies: {names}")
 
     if support_emp and (support_emp or nonsupport_emp):
         avg_support_size = mean(support_emp)
