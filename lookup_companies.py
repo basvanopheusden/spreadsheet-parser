@@ -7,7 +7,7 @@ import re
 from argparse import ArgumentParser
 from parser import Company, read_companies_from_csv
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from company_lookup import async_fetch_company_web_info, parse_llm_response
 
@@ -180,6 +180,12 @@ def generate_final_report(
         ttest_ind = None
         chi2_contingency = None
 
+    emp_ttest: Optional[Tuple[float, float]] = None
+    size_ttest: Optional[Tuple[float, float]] = None
+    ipo_chi2: Optional[float] = None
+    rev_chi2: Optional[float] = None
+    rank_chi2: Optional[float] = None
+
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
     subcat_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
@@ -296,6 +302,7 @@ def generate_final_report(
 
         if ttest_ind and len(support_emp) >= 2 and len(nonsupport_emp) >= 2:
             tstat, pval = ttest_ind(support_emp, nonsupport_emp, equal_var=False)
+            emp_ttest = (tstat, pval)
             lines.append(f"T-test comparing company size: t={tstat:.2f}, p={pval:.3f}")
         elif ttest_ind:
             lines.append("Not enough data for t-test of company size.")
@@ -315,6 +322,7 @@ def generate_final_report(
             ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
+        ipo_chi2 = p
         lines.append(f"Chi-squared test for IPO status: p={p:.3f}")
     elif chi2_contingency:
         lines.append("Not enough categories for chi-squared test of IPO status.")
@@ -332,6 +340,7 @@ def generate_final_report(
             ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
+        rev_chi2 = p
         lines.append(f"Chi-squared test for revenue range: p={p:.3f}")
     elif chi2_contingency:
         lines.append("Not enough categories for chi-squared test of revenue range.")
@@ -349,6 +358,7 @@ def generate_final_report(
             ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
+        rank_chi2 = p
         lines.append(f"Chi-squared test for CB rank: p={p:.3f}")
     elif chi2_contingency:
         lines.append("Not enough categories for chi-squared test of CB rank.")
@@ -394,6 +404,7 @@ def generate_final_report(
                 tstat, pval = ttest_ind(
                     size_vals_support, size_vals_non, equal_var=False
                 )
+                size_ttest = (tstat, pval)
                 lines.append(
                     f"T-test comparing size metric: t={tstat:.2f}, p={pval:.3f}"
                 )
@@ -415,6 +426,44 @@ def generate_final_report(
         lines.append(
             f"Employee counts (min/median/max): {int(min(emp_values))} / {int(median(emp_values))} / {int(max(emp_values))}"
         )
+
+    lines.append("\nConclusions:")
+    support_pct = (total_support / total_companies * 100) if total_companies else 0.0
+    mc_ind, mc_count = (ind_name, ind_count) if industries_all else ("Unknown", 0)
+    mc_support = industry_data[mc_ind]["supportive"] if mc_ind in industry_data else 0
+    mc_pct = (mc_support / mc_count * 100) if mc_count else 0.0
+    paragraph_parts = [
+        f"Among the {total_companies} companies analyzed, {total_support} ({support_pct:.1f}%) were supportive of interoperability." ,
+        f"The most represented industry was {mc_ind} with {mc_count} firms, of which {mc_pct:.1f}% were supportive."
+    ]
+    if emp_ttest:
+        tstat, pval = emp_ttest
+        significance = "significantly" if pval < 0.05 else "not significantly"
+        paragraph_parts.append(
+            f"Employee counts suggest supportive companies are {significance} smaller (t={tstat:.2f}, p={pval:.3f})."
+        )
+    if size_ttest:
+        tstat, pval = size_ttest
+        significance = "significant" if pval < 0.05 else "no significant"
+        paragraph_parts.append(
+            f"A derived size metric shows {significance} difference (t={tstat:.2f}, p={pval:.3f})."
+        )
+    if ipo_chi2 is not None:
+        significance = "significant" if ipo_chi2 < 0.05 else "no significant"
+        paragraph_parts.append(
+            f"IPO status shows {significance} association with support (p={ipo_chi2:.3f})."
+        )
+    if rev_chi2 is not None:
+        significance = "significant" if rev_chi2 < 0.05 else "no significant"
+        paragraph_parts.append(
+            f"Revenue range shows {significance} association (p={rev_chi2:.3f})."
+        )
+    if rank_chi2 is not None:
+        significance = "significant" if rank_chi2 < 0.05 else "no significant"
+        paragraph_parts.append(
+            f"CB rank has {significance} association (p={rank_chi2:.3f})."
+        )
+    lines.append(" ".join(paragraph_parts))
 
     return "\n".join(lines)
 

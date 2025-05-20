@@ -269,6 +269,7 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Most common industry: Manufacturing (1)", report)
         self.assertIn("Most common IPO status: Unknown (3)", report)
         self.assertIn("Employee counts (min/median/max): 75 / 175 / 750", report)
+        self.assertIn("Conclusions:", report)
 
 
 class TestIndustryNormalization(unittest.TestCase):
