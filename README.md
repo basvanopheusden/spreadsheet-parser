@@ -52,7 +52,8 @@ The repository also contains a simple helper, `fetch_company_web_info`, in
 `company_lookup.py`. It sends a prompt to OpenAI's API to retrieve a summary of a
 company from the web. The helper expects an ``OPENAI_API_KEY`` environment
 variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If no
-model is specified, it defaults to ``gpt-4o``.
+model is specified, it defaults to ``gpt-4o``. The command-line tool described
+below also accepts a ``--model-name`` argument to override this value.
 
 You may provide just the company name or pass a `Company` object returned from
 `read_companies_from_csv` or `read_companies_from_xlsx`. 
@@ -70,10 +71,12 @@ which reads a CSV file and uses `fetch_company_web_info` to retrieve summaries f
 each company. The script processes only a limited number of rows (default is 5)
 and issues a warning if the CSV contains more than 100 lines.
 The tool now fetches results in parallel using asynchronous API calls. You can
-control the level of concurrency with the `--max-concurrency` flag (default is 5).
+control the level of concurrency with the `--max-concurrency` flag (default is 5)
+and select the OpenAI model with `--model-name` (default is `gpt-4o`).
 
 ```bash
-python lookup_companies.py path/to/companies.csv --max-lines 5 --max-concurrency 10
+python lookup_companies.py path/to/companies.csv \
+    --max-lines 5 --max-concurrency 10 --model-name gpt-4o
 ```
 
 This will fetch summaries and then display only the final report. The output
