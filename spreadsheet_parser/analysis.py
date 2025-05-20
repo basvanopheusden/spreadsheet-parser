@@ -600,7 +600,10 @@ async def _collect_company_data(
 ]:
     """Fetch and parse web info for each company."""
 
-    from lookup_companies import async_fetch_company_web_info
+    # Import ``async_fetch_company_web_info`` directly from ``company_lookup``
+    # rather than through ``lookup_companies`` so tests can patch the function
+    # at its canonical location.
+    from company_lookup import async_fetch_company_web_info
 
     semaphore = asyncio.Semaphore(max_concurrency)
     client = await _make_client()
