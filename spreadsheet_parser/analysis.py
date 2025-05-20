@@ -445,14 +445,34 @@ def generate_final_report(
             if j
         ]
         if examples:
-            examples.sort(key=lambda x: (x[1] is not None, x[1] or 0), reverse=True)
-            lines.append("\nExample justifications:")
-            for name, stance, justif in examples[:3]:
-                if stance is None:
-                    label = "Unknown"
-                else:
-                    label = "Support" if stance >= 0.5 else "Oppose"
-                lines.append(f"  {name} ({label}): {justif}")
+            # Select examples spread across the stance range [0, 1]
+            targets = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+            chosen = []
+            used = set()
+            for t in targets:
+                best = None
+                best_diff = None
+                best_idx = None
+                for idx, (_n, s, _j) in enumerate(examples):
+                    if idx in used or s is None:
+                        continue
+                    diff = abs(s - t)
+                    if best_diff is None or diff < best_diff:
+                        best = examples[idx]
+                        best_diff = diff
+                        best_idx = idx
+                if best is not None:
+                    used.add(best_idx)
+                    chosen.append(best)
+
+            if chosen:
+                lines.append("\nExample justifications:")
+                for name, stance, justif in chosen:
+                    if stance is None:
+                        label = "Unknown"
+                    else:
+                        label = "Support" if stance >= 0.5 else "Oppose"
+                    lines.append(f"  {name} ({label}): {justif}")
 
     lines.append("\nConclusions:")
     support_pct = (total_support / total_companies * 100) if total_companies else 0.0
