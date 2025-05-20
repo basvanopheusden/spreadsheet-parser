@@ -1,3 +1,5 @@
+"""Wrappers around OpenAI helpers for fetching and parsing company summaries."""
+
 # Import required so tests can patch company_lookup.openai.OpenAI
 import openai
 from spreadsheet_parser import (
