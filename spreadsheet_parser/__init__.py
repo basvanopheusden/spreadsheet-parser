@@ -1,7 +1,7 @@
 """Utility package for parsing company spreadsheets and looking up company info."""
 
 from .models import Company
-from .csv_reader import read_companies_from_csv
+from .csv_reader import read_companies_from_csv, read_companies_from_xlsx
 from .llm import (
     fetch_company_web_info,
     async_fetch_company_web_info,
@@ -26,6 +26,7 @@ _run_async = run_async
 __all__ = [
     "Company",
     "read_companies_from_csv",
+    "read_companies_from_xlsx",
     "fetch_company_web_info",
     "async_fetch_company_web_info",
     "parse_llm_response",
