@@ -580,10 +580,21 @@ def generate_final_report(
 
 
 async def _make_client():
-    """Return an OpenAI client compatible with old and new libraries."""
+    """Return an OpenAI client compatible with old and new libraries.
+
+    Raises
+    ------
+    EnvironmentError
+        If ``OPENAI_API_KEY`` is not defined in the environment.
+    """
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise EnvironmentError("OPENAI_API_KEY environment variable not set")
+
     if hasattr(openai, "AsyncOpenAI"):
-        return openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    return openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        return openai.AsyncOpenAI(api_key=api_key)
+    return openai.OpenAI(api_key=api_key)
 
 
 async def _collect_company_data(
