@@ -84,8 +84,10 @@ broken down by IPO status, revenue range and CB rank, and the output includes a
 simple company size metric that combines employee counts with these fields. The
 text report is written to ``final_report.txt`` alongside a
 CSV table of company summaries. When the optional ``scipy`` package is
-installed, a t-test is performed to compare employee counts of supportive vs.
-non-supportive companies.
+installed, statistical tests are included in the report. T-tests compare
+employee counts and the derived size metric between supportive and
+non-supportive companies, while chi-squared tests examine whether IPO status,
+revenue range or CB rank are associated with support levels.
 
 Example snippet:
 
@@ -115,6 +117,11 @@ Support by CB rank:
 Average company size metric (0=small, 1=large):
   Supportive: 0.07
   Non-supportive: 1.00
+T-test comparing company size: t=0.50, p=0.650
+T-test comparing size metric: t=0.45, p=0.700
+Chi-squared test for IPO status: p=0.500
+Chi-squared test for revenue range: p=0.500
+Chi-squared test for CB rank: p=0.500
 ```
 
 ## Running Tests
