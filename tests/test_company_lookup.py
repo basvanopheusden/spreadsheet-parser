@@ -28,7 +28,8 @@ from parser import Company
 
 from company_lookup import (async_fetch_company_web_info,
                             fetch_company_web_info, parse_llm_response)
-from lookup_companies import _industry, _run_async, generate_final_report
+from lookup_companies import _industry, generate_final_report
+from spreadsheet_parser.analysis import run_async
 
 
 class TestFetchCompanyWebInfo(unittest.TestCase):
@@ -418,7 +419,7 @@ class TestRunAsync(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            asyncio.run(_run_async(companies, 1, pathlib.Path(tmpdir)))
+            asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
             csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
             with csv_path.open(newline="") as f:
                 rows = list(csv.reader(f))
