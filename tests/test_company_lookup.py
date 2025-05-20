@@ -65,6 +65,9 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
 
                     args, kwargs = mock_client.chat.completions.create.call_args
                     self.assertEqual(kwargs["model"], "test-model")
+                    self.assertEqual(
+                        kwargs["tools"], [{"type": "web_search_preview"}]
+                    )
                     user_content = kwargs["messages"][1]["content"]
                     self.assertIn("Acme Corp", user_content)
                     self.assertIn(
