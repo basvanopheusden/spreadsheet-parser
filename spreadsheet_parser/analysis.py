@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .llm import async_fetch_company_web_info, parse_llm_response
+from datetime import date, datetime
 
 DEFAULT_MAX_LINES = 5
 DEFAULT_MAX_CONCURRENCY = 5
@@ -19,7 +20,17 @@ _INDUSTRY_ALIASES = {
 
 def _employee_count(company: Company) -> Optional[float]:
     """Return an approximate employee count for a company."""
-    text = company.number_of_employees or ""
+    text = company.number_of_employees
+    if text is None:
+        return None
+
+    if isinstance(text, (int, float)):
+        return float(text)
+
+    if isinstance(text, (datetime, date)):
+        return None
+
+    text = str(text)
     digits = [int(d) for d in re.findall(r"\d+", text)]
     if not digits:
         return None
