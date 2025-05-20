@@ -222,7 +222,9 @@ def generate_final_report(
     """Generate a more detailed summary of stance coverage per industry.
 
     ``stances`` should contain numeric values between 0 and 1 where higher
-    numbers indicate stronger support for interoperability legislation.
+    numbers indicate stronger support for interoperability legislation. When
+    generating the report these raw scores are converted to percentile ranks so
+    that all values fall in the ``[0, 1]`` range.
     ``justifications`` may provide short explanations for each company's
     stance. When supplied, a few example lines with these justifications are
     included in the final report.
@@ -259,22 +261,29 @@ def generate_final_report(
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
 
+    percentiles = percentile_ranks(stances)
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
     biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
-    for company, stance, subcat, is_biz in zip(companies, stances, sub_iter, biz_iter):
+    for company, stance, perc, subcat, is_biz in zip(
+        companies,
+        stances,
+        percentiles,
+        sub_iter,
+        biz_iter,
+    ):
         if is_biz is False or not _is_business(company.organization_name):
             continue
         ind = _industry(company)
         info = industry_data[ind]
         info["total"] += 1
-        if stance is not None:
-            info["stances"].append(stance)
+        if perc is not None:
+            info["stances"].append(perc)
 
         sc = subcat or "Uncategorized"
         sc_info = subcat_data[sc]
         sc_info["total"] += 1
-        if stance is not None:
-            subcat_top[sc].append((stance, company.organization_name))
+        if perc is not None:
+            subcat_top[sc].append((perc, company.organization_name))
             if stance >= 0.5:
                 sc_info["supportive"] += 1
 
@@ -681,6 +690,11 @@ async def _collect_company_data(
                 rank_str,
             ]
         )
+
+    # Replace raw stance scores with percentile ranks for the CSV output
+    ranks = percentile_ranks(stances)
+    for idx, r in enumerate(ranks):
+        table_rows[idx][6] = "" if r is None else f"{r:.2f}"
 
     close_method = getattr(client, "aclose", None)
     if close_method is None:
