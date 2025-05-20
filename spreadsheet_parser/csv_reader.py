@@ -1,7 +1,7 @@
 import csv
 import re
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, Iterable, List, Union
 
 from .models import Company, CANONICAL_HEADERS
 
@@ -21,6 +21,58 @@ _EXCLUDE_PATTERNS = [
 ]
 
 
+_MONTH_MAP = {
+    "Jan": "1",
+    "Feb": "2",
+    "Mar": "3",
+    "Apr": "4",
+    "May": "5",
+    "Jun": "6",
+    "Jul": "7",
+    "Aug": "8",
+    "Sep": "9",
+    "Oct": "10",
+    "Nov": "11",
+    "Dec": "12",
+}
+
+
+def _decode_lines(file_obj) -> Iterable[str]:
+    """Yield decoded lines from a binary file object with fallback."""
+
+    def decode(b: bytes, *, first: bool = False) -> str:
+        enc = "utf-8-sig" if first else "utf-8"
+        try:
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            return b.decode("latin-1").encode("utf-8", "replace").decode("utf-8")
+
+    first = True
+    for bline in file_obj:
+        yield decode(bline, first=first)
+        first = False
+
+
+def _fix_employee_range(text: str) -> str:
+    """Normalize malformed employee range strings."""
+
+    m = re.match(r"^(\d+)-([A-Za-z]{3})$", text)
+    if m:
+        day, mon = m.groups()
+        mon_num = _MONTH_MAP.get(mon.title())
+        if mon_num:
+            return f"{mon_num}-{day}"
+
+    m = re.match(r"^([A-Za-z]{3})-(\d+)$", text)
+    if m:
+        mon, year = m.groups()
+        mon_num = _MONTH_MAP.get(mon.title())
+        if mon_num:
+            return f"{mon_num}-{year}"
+
+    return text
+
+
 def _is_business(name: str) -> bool:
     """Return True if the name appears to describe a business."""
     text = name.lower()
@@ -33,15 +85,22 @@ def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
     path = Path(path)
     companies: List[Company] = []
 
-    with path.open(newline="", encoding="utf-8-sig") as csvfile:
-        sample = csvfile.read(2048)
-        csvfile.seek(0)
+    with path.open("rb") as raw:
+        sample_bytes = raw.read(2048)
+        raw.seek(0)
+        try:
+            sample = sample_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            sample = sample_bytes.decode("latin-1").encode("utf-8", "replace").decode("utf-8")
+
         try:
             dialect = csv.Sniffer().sniff(sample)
+            if dialect.delimiter not in {",", ";", "\t", "|"}:
+                raise csv.Error("unlikely delimiter")
         except csv.Error:
             dialect = csv.excel
 
-        reader = csv.DictReader(csvfile, dialect=dialect)
+        reader = csv.DictReader(_decode_lines(raw), dialect=dialect)
 
         sanitized_map = {_sanitize(v): k for k, v in CANONICAL_HEADERS.items()}
         field_map: Dict[str, str] = {}
@@ -59,6 +118,8 @@ def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
                     value = value.strip()
                 if attr == "organization_name":
                     kwargs[attr] = value or ""
+                elif attr == "number_of_employees" and value is not None:
+                    kwargs[attr] = _fix_employee_range(value) if value != "" else None
                 else:
                     kwargs[attr] = value if value != "" else None
 
