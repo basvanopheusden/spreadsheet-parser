@@ -13,6 +13,25 @@ from parser import Company
 
 import openai
 
+# AI industry sub-category taxonomy derived from the dataset
+_AI_SUBCATEGORIES = [
+    "Generative AI",
+    "Machine Learning",
+    "Natural Language Processing",
+    "Computer Vision",
+    "Robotics",
+    "AI Infrastructure",
+    "AI Hardware",
+    "Big Data & Analytics",
+    "Security AI",
+    "Finance AI",
+    "Health/Bio AI",
+    "Education AI",
+    "Marketing AI",
+    "Other AI",
+    "Non-AI",
+]
+
 
 async def _fetch_with_cache(
     company: Union[str, Company],
@@ -37,14 +56,17 @@ async def _fetch_with_cache(
             "Correct any malformed values and respond with the cleaned data.\n"
             "```json\n" + csv_json + "\n```\n"
         )
+    taxonomy_list = "; ".join(_AI_SUBCATEGORIES)
     prompt += (
         "Then summarize the company's business model and data strategy and "
         "rate their likely support for interoperability legislation on a scale "
         "from 0 (strong opponent) to 1 (strong proponent). "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
+        "Classify the company using one of these AI sub-categories: "
+        f"{taxonomy_list}. "
         "Return ONLY a JSON code block containing the sanitized fields along "
-        "with a numeric 'supportive' value."
+        "with a 'sub_category' string and numeric 'supportive' value."
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -218,6 +240,12 @@ def parse_llm_response(response: str) -> Optional[dict]:
 
     supportive = _parse_support_value(data.get("supportive"))
     data["supportive"] = supportive
+
+    subcat = data.get("sub_category") or data.get("subcategory")
+    if isinstance(subcat, str):
+        data["sub_category"] = subcat.strip()
+    else:
+        data["sub_category"] = None
 
     return data
 
