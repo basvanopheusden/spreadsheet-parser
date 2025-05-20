@@ -17,7 +17,7 @@ if "openai" not in sys.modules:
 
 from datetime import datetime
 from parser import Company
-from spreadsheet_parser.analysis import _cb_rank_value, _employee_count
+from spreadsheet_parser.analysis import _cb_rank_value, _employee_count, percentile_ranks
 from spreadsheet_parser.llm import report_to_abstract
 
 
@@ -73,6 +73,22 @@ class TestReportToAbstract(unittest.TestCase):
         self.assertEqual(kwargs["model"], "test-model")
         self.assertIn("Final Report text", kwargs["input"])
         self.assertEqual(result, "abs")
+
+
+class TestPercentileRanks(unittest.TestCase):
+    def test_basic_percentiles(self):
+        vals = [10, 20, 30]
+        ranks = percentile_ranks(vals)
+        self.assertAlmostEqual(ranks[0], 0.1666, places=2)
+        self.assertAlmostEqual(ranks[1], 0.5, places=2)
+        self.assertAlmostEqual(ranks[2], 0.8333, places=2)
+
+    def test_handles_ties_and_none(self):
+        vals = [5, None, 10, 5]
+        ranks = percentile_ranks(vals)
+        self.assertIsNone(ranks[1])
+        self.assertAlmostEqual(ranks[0], ranks[3], places=3)
+        self.assertAlmostEqual(ranks[2], 0.8333, places=3)
 
 
 if __name__ == "__main__":

@@ -156,6 +156,20 @@ Chi-squared test for revenue range: p=0.500
 Chi-squared test for CB rank: p=0.500
 ```
 
+## Percentile Ranking
+
+The helper function ``percentile_ranks`` can be used to normalize stance values.
+It converts a list of numeric scores to percentile ranks between 0 and 1. Any
+``None`` or non-numeric values result in ``None`` in the returned list.
+
+```python
+from spreadsheet_parser import percentile_ranks
+
+scores = [0.9, 0.5, 0.7]
+print(percentile_ranks(scores))
+# [0.83, 0.17, 0.50]
+```
+
 ## Running Tests
 
 The project uses Python's built-in ``unittest`` framework. To execute the entire
