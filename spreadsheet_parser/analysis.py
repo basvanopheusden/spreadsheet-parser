@@ -354,12 +354,12 @@ def generate_final_report(
 
     lines.append("\nSupportive companies by industry:")
     max_bar_width = 20
-    total_support = sum(d["supportive"] for d in industry_data.values())
-    if total_support == 0:
-        total_support = 1
+    industry_support_total = sum(d["supportive"] for d in industry_data.values())
+    if industry_support_total == 0:
+        industry_support_total = 1
     for ind in sorted(industry_data):
         d = industry_data[ind]
-        proportion = d["supportive"] / total_support
+        proportion = d["supportive"] / industry_support_total
         bar_len = int(round(proportion * max_bar_width)) if d["supportive"] else 0
         # Ensure at least one character is shown for non-zero counts
         if d["supportive"] > 0 and bar_len == 0:
