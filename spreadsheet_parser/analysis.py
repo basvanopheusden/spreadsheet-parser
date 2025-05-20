@@ -80,9 +80,16 @@ def _revenue_category(text: Optional[str]) -> str:
 
 
 def _cb_rank_value(text: Optional[str]) -> Optional[int]:
-    if not text:
+    """Return the Crunchbase rank as an integer if possible."""
+
+    if text is None:
         return None
-    m = re.search(r"\d+", text.replace(",", ""))
+
+    # ``cb_rank`` may come in as an int or float when read from XLSX files.
+    # Convert it to ``str`` so that the regex search works consistently.
+    text_str = str(text)
+
+    m = re.search(r"\d+", text_str.replace(",", ""))
     return int(m.group()) if m else None
 
 
