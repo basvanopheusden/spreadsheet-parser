@@ -160,11 +160,15 @@ def generate_final_report(
     companies: List[Company],
     stances: List[Optional[float]],
     subcategories: Optional[List[Optional[str]]] = None,
+    justifications: Optional[List[Optional[str]]] = None,
 ) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
     ``stances`` should contain numeric values between 0 and 1 where higher
     numbers indicate stronger support for interoperability legislation.
+    ``justifications`` may provide short explanations for each company's
+    stance. When supplied, a few example lines with these justifications are
+    included in the final report.
     """
 
     from collections import Counter, defaultdict
@@ -434,6 +438,22 @@ def generate_final_report(
             f"Employee counts (min/median/max): {int(min(emp_values))} / {int(median(emp_values))} / {int(max(emp_values))}"
         )
 
+    if justifications:
+        examples = [
+            (c.organization_name, s, j)
+            for c, s, j in zip(companies, stances, justifications)
+            if j
+        ]
+        if examples:
+            examples.sort(key=lambda x: (x[1] is not None, x[1] or 0), reverse=True)
+            lines.append("\nExample justifications:")
+            for name, stance, justif in examples[:3]:
+                if stance is None:
+                    label = "Unknown"
+                else:
+                    label = "Support" if stance >= 0.5 else "Oppose"
+                lines.append(f"  {name} ({label}): {justif}")
+
     lines.append("\nConclusions:")
     support_pct = (total_support / total_companies * 100) if total_companies else 0.0
     mc_ind, mc_count = (ind_name, ind_count) if industries_all else ("Unknown", 0)
@@ -480,6 +500,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
+    just_list: List[Optional[str]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
 
@@ -497,6 +518,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         if isinstance(result, Exception):
             stances.append(None)
             subcats.append(None)
+            just_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
@@ -533,6 +555,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
 
                 stances.append(stance_val)
                 subcats.append(subcat)
+                just_list.append(justification)
 
                 summary_text = re.split(
                     r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
@@ -561,6 +584,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
             else:
                 stances.append(None)
                 subcats.append(None)
+                just_list.append(None)
                 table_rows.append(
                     [
                         company.organization_name,
@@ -576,6 +600,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         else:
             stances.append(None)
             subcats.append(None)
+            just_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
@@ -588,7 +613,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 ]
             )
 
-    report = generate_final_report(companies, stances, subcats)
+    report = generate_final_report(companies, stances, subcats, just_list)
     print(report)
     print(f"Cached responses used: {cached_count}")
 

@@ -251,7 +251,12 @@ class TestFinalReport(unittest.TestCase):
         ]
 
         stances = [0.8, 0.4, 0.9]
-        report = generate_final_report(companies, stances)
+        justifications = [
+            "Because open standards are good",
+            "Less interested in openness",
+            "Strong advocate for open APIs",
+        ]
+        report = generate_final_report(companies, stances, justifications=justifications)
         self.assertIn("Manufacturing: supportive company found", report)
         self.assertIn("Technology: no supportive company found", report)
         self.assertIn("Software: supportive company found", report)
@@ -272,6 +277,8 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Most common IPO status: Unknown (3)", report)
         self.assertIn("Employee counts (min/median/max): 75 / 175 / 750", report)
         self.assertIn("Conclusions:", report)
+        self.assertIn("Example justifications:", report)
+        self.assertIn("Acme Corp (Support): Because open standards are good", report)
 
 
 class TestIndustryNormalization(unittest.TestCase):
