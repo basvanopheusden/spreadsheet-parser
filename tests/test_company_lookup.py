@@ -427,7 +427,7 @@ class TestIndustryNormalization(unittest.TestCase):
 
 class TestRunAsync(unittest.TestCase):
     @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
-    @patch("lookup_companies.async_fetch_company_web_info")
+    @patch("company_lookup.async_fetch_company_web_info")
     def test_qualitative_justification_column(self, mock_fetch, mock_abstract):
         responses = {
             "Acme Corp": (
