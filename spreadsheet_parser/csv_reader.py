@@ -68,3 +68,51 @@ def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
             companies.append(company)
 
     return companies
+
+
+def read_companies_from_xlsx(path: Union[str, Path]) -> List[Company]:
+    """Read company data from an XLSX file and return a list of ``Company`` objects.
+
+    This function requires the optional :mod:`openpyxl` package. If it is not
+    installed, an :class:`ImportError` is raised with a helpful message.
+    """
+
+    try:
+        import openpyxl  # type: ignore
+    except Exception as exc:  # pragma: no cover - optional dependency
+        raise ImportError(
+            "openpyxl is required to read .xlsx files"
+        ) from exc
+
+    path = Path(path)
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = wb.active
+
+    header_cells = [str(c.value or "") for c in next(ws.iter_rows(min_row=1, max_row=1))]
+
+    sanitized_map = {_sanitize(v): k for k, v in CANONICAL_HEADERS.items()}
+    field_map: Dict[str, int] = {}
+    for idx, header in enumerate(header_cells):
+        key = sanitized_map.get(_sanitize(header))
+        if key:
+            field_map[key] = idx
+
+    companies: List[Company] = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        kwargs = {}
+        for attr in CANONICAL_HEADERS.keys():
+            idx = field_map.get(attr)
+            value = row[idx] if idx is not None and idx < len(row) else None
+            if isinstance(value, str):
+                value = value.strip()
+            if attr == "organization_name":
+                kwargs[attr] = value or ""
+            else:
+                kwargs[attr] = value if value not in (None, "") else None
+
+        company = Company(**kwargs)
+        if not _is_business(company.organization_name):
+            continue
+        companies.append(company)
+
+    return companies

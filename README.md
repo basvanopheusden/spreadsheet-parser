@@ -27,12 +27,15 @@ and later analysis.
    - Headquarters Location
    - Description
    - CB Rank (Company)
-4. Import the reader function and parse your data:
+4. Import the reader function and parse your data. Both CSV and XLSX files are
+   supported:
 
 ```python
-from spreadsheet_parser import read_companies_from_csv
+from spreadsheet_parser import read_companies_from_csv, read_companies_from_xlsx
 
 companies = read_companies_from_csv("companies.csv")
+# or
+companies = read_companies_from_xlsx("companies.xlsx")
 for company in companies:
     print(company.organization_name, company.ipo_status)
 ```
@@ -52,9 +55,9 @@ variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If n
 model is specified, it defaults to ``gpt-4o``.
 
 You may provide just the company name or pass a `Company` object returned from
-`read_companies_from_csv`. When a dataclass is supplied, all details from the CSV
-are included in the prompt sent to the LLM so that it can give a more informed
-summary.
+`read_companies_from_csv` or `read_companies_from_xlsx`. When a dataclass is
+supplied, all details from the spreadsheet are included in the prompt sent to
+the LLM so that it can give a more informed summary.
 ## Lookup Script
 
 For convenience, the repository provides a small CLI script, `lookup_companies.py`,
