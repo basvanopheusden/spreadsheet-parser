@@ -12,15 +12,10 @@ if "openai" not in sys.modules:
 
     def make_client(*args, **kwargs):
         return types.SimpleNamespace(
-            chat=types.SimpleNamespace(
-                completions=types.SimpleNamespace(create=lambda **kwargs: None)
-            )
+            responses=types.SimpleNamespace(create=lambda **kwargs: None)
         )
 
-    openai_stub = types.SimpleNamespace(
-        ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None),
-        OpenAI=make_client,
-    )
+    openai_stub = types.SimpleNamespace(OpenAI=make_client)
     sys.modules["openai"] = openai_stub
 
 import csv
@@ -36,10 +31,10 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
     @patch("company_lookup.openai.OpenAI")
     def test_prompt_includes_csv_details(self, mock_openai):
         mock_client = mock_openai.return_value
-        mock_client.chat.completions.create.return_value = type(
+        mock_client.responses.create.return_value = type(
             "Resp",
             (),
-            {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
+            {"output_text": "ok"},
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -63,12 +58,12 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
 
                     fetch_company_web_info(company, model="test-model")
 
-                    args, kwargs = mock_client.chat.completions.create.call_args
+                    args, kwargs = mock_client.responses.create.call_args
                     self.assertEqual(kwargs["model"], "test-model")
                     self.assertEqual(
-                        kwargs["tools"], [{"type": "web_search"}]
+                        kwargs["tools"], [{"type": "web_search_preview"}]
                     )
-                    user_content = kwargs["messages"][1]["content"]
+                    user_content = kwargs["input"]
                     self.assertIn("Acme Corp", user_content)
                     self.assertIn(
                         '"estimated_revenue_range": "$10M-$50M"', user_content
@@ -172,10 +167,10 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
     @patch("company_lookup.openai.OpenAI")
     def test_cache_reused_for_same_seed(self, mock_openai):
         mock_client = mock_openai.return_value
-        mock_client.chat.completions.create.return_value = type(
+        mock_client.responses.create.return_value = type(
             "Resp",
             (),
-            {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
+            {"output_text": "ok"},
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -190,7 +185,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     fetch_company_web_info("Acme Corp", model="test-model")
                     fetch_company_web_info("Acme Corp", model="test-model")
 
-        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+        self.assertEqual(mock_client.responses.create.call_count, 1)
 
     @patch("company_lookup.openai.AsyncOpenAI", create=True)
     def test_async_cache_reused_for_same_seed(self, mock_async_openai):
@@ -198,13 +193,9 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         mock_client.aclose = AsyncMock()
 
         async def fake_create(**kwargs):
-            return type(
-                "Resp",
-                (),
-                {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
-            )
+            return type("Resp", (), {"output_text": "ok"})
 
-        mock_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+        mock_client.responses.create = AsyncMock(side_effect=fake_create)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("pathlib.Path.home", return_value=pathlib.Path(tmpdir)):
@@ -222,15 +213,15 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                         async_fetch_company_web_info("Acme Corp", model="test-model")
                     )
 
-        self.assertEqual(mock_client.chat.completions.create.call_count, 1)
+        self.assertEqual(mock_client.responses.create.call_count, 1)
 
     @patch("company_lookup.openai.OpenAI")
     def test_cache_not_reused_for_different_model(self, mock_openai):
         mock_client = mock_openai.return_value
-        mock_client.chat.completions.create.return_value = type(
+        mock_client.responses.create.return_value = type(
             "Resp",
             (),
-            {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
+            {"output_text": "ok"},
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -245,7 +236,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     fetch_company_web_info("Acme Corp", model="model-a")
                     fetch_company_web_info("Acme Corp", model="model-b")
 
-        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+        self.assertEqual(mock_client.responses.create.call_count, 2)
 
     @patch("company_lookup.openai.AsyncOpenAI", create=True)
     def test_async_cache_not_reused_for_different_model(self, mock_async_openai):
@@ -253,13 +244,9 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         mock_client.aclose = AsyncMock()
 
         async def fake_create(**kwargs):
-            return type(
-                "Resp",
-                (),
-                {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
-            )
+            return type("Resp", (), {"output_text": "ok"})
 
-        mock_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+        mock_client.responses.create = AsyncMock(side_effect=fake_create)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("pathlib.Path.home", return_value=pathlib.Path(tmpdir)):
@@ -277,7 +264,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                         async_fetch_company_web_info("Acme Corp", model="model-b")
                     )
 
-        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+        self.assertEqual(mock_client.responses.create.call_count, 2)
 
 
 class TestFinalReport(unittest.TestCase):

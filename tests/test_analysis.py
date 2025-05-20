@@ -9,15 +9,10 @@ if "openai" not in sys.modules:
 
     def make_client(*args, **kwargs):
         return types.SimpleNamespace(
-            chat=types.SimpleNamespace(
-                completions=types.SimpleNamespace(create=lambda **kwargs: None)
-            )
+            responses=types.SimpleNamespace(create=lambda **kwargs: None)
         )
 
-    openai_stub = types.SimpleNamespace(
-        ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None),
-        OpenAI=make_client,
-    )
+    openai_stub = types.SimpleNamespace(OpenAI=make_client)
     sys.modules["openai"] = openai_stub
 
 from datetime import datetime
@@ -66,21 +61,17 @@ class TestReportToAbstract(unittest.TestCase):
     @patch("spreadsheet_parser.llm.openai.AsyncOpenAI", create=True)
     @patch("spreadsheet_parser.llm.openai.OpenAI")
     def test_prompt_contains_report(self, mock_openai, mock_async):
-        response_obj = type(
-            "Resp",
-            (),
-            {"choices": [type("Choice", (), {"message": {"content": "abs"}})]},
-        )
+        response_obj = type("Resp", (), {"output_text": "abs"})
         mock_client = MagicMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=response_obj)
+        mock_client.responses.create = AsyncMock(return_value=response_obj)
         mock_async.return_value = mock_client
 
         with patch.dict(os.environ, {"OPENAI_API_KEY": "x"}):
             result = report_to_abstract("Final Report text", model="test-model")
 
-        args, kwargs = mock_client.chat.completions.create.call_args
+        args, kwargs = mock_client.responses.create.call_args
         self.assertEqual(kwargs["model"], "test-model")
-        self.assertIn("Final Report text", kwargs["messages"][1]["content"])
+        self.assertIn("Final Report text", kwargs["input"])
         self.assertEqual(result, "abs")
 
 
