@@ -1,26 +1,22 @@
 from pathlib import Path
 from argparse import ArgumentParser
 import asyncio
-import csv
 import re
 
-from spreadsheet_parser import (
-    async_fetch_company_web_info,
+from spreadsheet_parser.analysis import (
     run_async,
     generate_final_report,
     DEFAULT_MAX_LINES,
     DEFAULT_MAX_CONCURRENCY,
     _industry,
-    parse_llm_response,
 )
 from spreadsheet_parser.csv_reader import read_companies_from_csv
+from spreadsheet_parser.quality import find_duplicate_names, rows_with_missing_fields
 
 __all__ = [
     "run_async",
-    "_run_async",
     "generate_final_report",
     "DEFAULT_MAX_LINES",
-    "async_fetch_company_web_info",
     "DEFAULT_MAX_CONCURRENCY",
     "_industry",
     "main",
@@ -183,7 +179,6 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
 
-
 def main() -> None:
     parser = ArgumentParser(
         description="Fetch web summaries for companies listed in a CSV file"
@@ -210,6 +205,13 @@ def main() -> None:
     args = parser.parse_args()
 
     companies = read_companies_from_csv(args.csv)
+    duplicates = find_duplicate_names(companies)
+    if duplicates:
+        print("Duplicate organization names found:")
+        for name in duplicates:
+            print(f"  {name}")
+
+    rows_with_missing_fields(companies, ["organization_name_url"])
     total_rows = len(companies)
 
     if total_rows > 100:
