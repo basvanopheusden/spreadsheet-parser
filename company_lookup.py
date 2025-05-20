@@ -1,3 +1,4 @@
+# Import required so tests can patch company_lookup.openai.OpenAI
 import openai
 from spreadsheet_parser import (
     fetch_company_web_info,
