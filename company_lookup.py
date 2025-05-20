@@ -1,3 +1,5 @@
+"""Wrappers around OpenAI helpers for fetching and parsing company summaries."""
+
 import openai
 from spreadsheet_parser import (
     fetch_company_web_info,

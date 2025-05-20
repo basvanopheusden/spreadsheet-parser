@@ -1,3 +1,5 @@
+"""CLI tool for processing company spreadsheets and generating LLM-based reports."""
+
 from pathlib import Path
 from argparse import ArgumentParser
 import asyncio
