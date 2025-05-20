@@ -545,6 +545,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     company.organization_name,
                     _industry(company),
                     "",
+                    "",
                     "Unknown",
                     "",
                     "",
@@ -562,21 +563,33 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     stance_val = None
                     justification = None
                     subcat = None
+                    parsed_summary = None
                 else:
                     stance_val = parsed.get("supportive")
                     justification = parsed.get("justification")
                     subcat = parsed.get("sub_category")
+                    parsed_summary = (
+                        parsed.get("business_model_summary")
+                        or parsed.get("business_model")
+                        or parsed.get("summary")
+                    )
+
                 stances.append(stance_val)
                 subcats.append(subcat)
+
                 summary_text = re.split(
                     r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
                 )[0].strip()
+                if not summary_text:
+                    summary_text = parsed_summary or ""
+
                 if stance_val is None:
                     stance_label = "Unknown"
                     rank_str = ""
                 else:
                     stance_label = "Support" if stance_val >= 0.5 else "Oppose"
                     rank_str = f"{stance_val:.2f}"
+
                 table_rows.append(
                     [
                         company.organization_name,
