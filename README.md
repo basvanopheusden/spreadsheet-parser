@@ -82,6 +82,7 @@ ASCII bar chart. It also lists common categories found in the input data and
 provides a short summary of numeric value distributions. Support levels are
 broken down by IPO status, revenue range and CB rank, and the output includes a
 simple company size metric that combines employee counts with these fields. The
+report lists the top three most supportive companies for each AI sub-category.
 text report is written to ``final_report.txt`` alongside a
 CSV table of company summaries. When the optional ``scipy`` package is
 installed, statistical tests are included in the report. T-tests compare
