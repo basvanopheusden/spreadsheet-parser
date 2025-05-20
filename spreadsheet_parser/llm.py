@@ -105,7 +105,7 @@ async def _fetch_with_cache(
             },
             {"role": "user", "content": prompt},
         ],
-        "tools": [{"type": "web_search_preview"}],
+        "tools": [{"type": "web_search"}],
     }
     if seed is not None:
         kwargs["seed"] = seed
