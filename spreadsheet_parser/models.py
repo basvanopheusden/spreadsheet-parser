@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 @dataclass
 class Company:
@@ -12,7 +12,10 @@ class Company:
     company_type: Optional[str]
     number_of_employees: Optional[str]
     full_description: Optional[str]
-    industries: Optional[str]
+    # ``Industries`` may contain multiple comma-separated values in the
+    # original spreadsheet.  Store them as a list of strings so that a
+    # company can be counted in more than one industry category.
+    industries: Optional[List[str]]
     headquarters_location: Optional[str]
     description: Optional[str]
     cb_rank: Optional[str]

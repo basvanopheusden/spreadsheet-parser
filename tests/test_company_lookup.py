@@ -50,7 +50,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                         company_type="For Profit",
                         number_of_employees="100-250",
                         full_description="Acme Corp specializes in gadgets and gizmos.",
-                        industries="Manufacturing",
+                        industries=["Manufacturing"],
                         headquarters_location="New York, NY",
                         description="Leading gadget manufacturer",
                         cb_rank="1",
@@ -282,7 +282,7 @@ class TestFinalReport(unittest.TestCase):
                 company_type=None,
                 number_of_employees="100-250",
                 full_description=None,
-                industries="Manufacturing",
+                industries=["Manufacturing"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -297,7 +297,7 @@ class TestFinalReport(unittest.TestCase):
                 company_type=None,
                 number_of_employees="500-1000",
                 full_description=None,
-                industries="Technology",
+                industries=["Technology"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -312,7 +312,7 @@ class TestFinalReport(unittest.TestCase):
                 company_type=None,
                 number_of_employees="50-100",
                 full_description=None,
-                industries="Software",
+                industries=["Software"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -361,7 +361,7 @@ class TestFinalReport(unittest.TestCase):
                 company_type=None,
                 number_of_employees="100-250",
                 full_description=None,
-                industries="Manufacturing",
+                industries=["Manufacturing"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -376,7 +376,7 @@ class TestFinalReport(unittest.TestCase):
                 company_type=None,
                 number_of_employees="500-1000",
                 full_description=None,
-                industries="Technology",
+                industries=["Technology"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -400,7 +400,9 @@ class TestFinalReport(unittest.TestCase):
 
 
 class TestIndustryNormalization(unittest.TestCase):
-    def _make_company(self, industries: str) -> Company:
+    def _make_company(self, industries: str | list[str]) -> Company:
+        if isinstance(industries, str):
+            industries = [industries]
         return Company(
             organization_name="Dummy",
             organization_name_url=None,
@@ -463,7 +465,7 @@ class TestRunAsync(unittest.TestCase):
                 company_type=None,
                 number_of_employees=None,
                 full_description=None,
-                industries="Technology",
+                industries=["Technology"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
@@ -478,7 +480,7 @@ class TestRunAsync(unittest.TestCase):
                 company_type=None,
                 number_of_employees=None,
                 full_description=None,
-                industries="Manufacturing",
+                industries=["Manufacturing"],
                 headquarters_location=None,
                 description=None,
                 cb_rank=None,
