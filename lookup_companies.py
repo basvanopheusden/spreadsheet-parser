@@ -14,6 +14,7 @@ from spreadsheet_parser import (
     parse_llm_response,
 )
 from spreadsheet_parser.csv_reader import read_companies_from_csv
+from spreadsheet_parser.quality import find_duplicate_names, rows_with_missing_fields
 
 __all__ = [
     "run_async",
@@ -25,6 +26,7 @@ __all__ = [
     "_industry",
     "main",
 ]
+
 
 async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
@@ -210,6 +212,13 @@ def main() -> None:
     args = parser.parse_args()
 
     companies = read_companies_from_csv(args.csv)
+    duplicates = find_duplicate_names(companies)
+    if duplicates:
+        print("Duplicate organization names found:")
+        for name in duplicates:
+            print(f"  {name}")
+
+    rows_with_missing_fields(companies, ["organization_name_url"])
     total_rows = len(companies)
 
     if total_rows > 100:
