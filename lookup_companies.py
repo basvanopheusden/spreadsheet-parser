@@ -171,9 +171,10 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     from statistics import mean, median
 
     try:
-        from scipy.stats import ttest_ind
+        from scipy.stats import ttest_ind, chi2_contingency
     except Exception:  # pragma: no cover - scipy optional
         ttest_ind = None
+        chi2_contingency = None
 
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
     ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
@@ -284,16 +285,45 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     for cat in sorted(ipo_data):
         d = ipo_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+    if chi2_contingency and len(ipo_data) > 1:
+        table = [
+            [ipo_data[c]["supportive"] for c in sorted(ipo_data)],
+            [ipo_data[c]["total"] - ipo_data[c]["supportive"] for c in sorted(ipo_data)],
+        ]
+        chi2, p, _, _ = chi2_contingency(table)
+        lines.append(f"Chi-squared test for IPO status: p={p:.3f}")
+    elif chi2_contingency:
+        lines.append("Not enough categories for chi-squared test of IPO status.")
 
     lines.append("\nSupport by revenue range:")
     for cat in sorted(revenue_data):
         d = revenue_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+    if chi2_contingency and len(revenue_data) > 1:
+        table = [
+            [revenue_data[c]["supportive"] for c in sorted(revenue_data)],
+            [revenue_data[c]["total"] - revenue_data[c]["supportive"] for c in sorted(revenue_data)],
+        ]
+        chi2, p, _, _ = chi2_contingency(table)
+        lines.append(f"Chi-squared test for revenue range: p={p:.3f}")
+    elif chi2_contingency:
+        lines.append(
+            "Not enough categories for chi-squared test of revenue range."
+        )
 
     lines.append("\nSupport by CB rank:")
     for cat in sorted(rank_data):
         d = rank_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
+    if chi2_contingency and len(rank_data) > 1:
+        table = [
+            [rank_data[c]["supportive"] for c in sorted(rank_data)],
+            [rank_data[c]["total"] - rank_data[c]["supportive"] for c in sorted(rank_data)],
+        ]
+        chi2, p, _, _ = chi2_contingency(table)
+        lines.append(f"Chi-squared test for CB rank: p={p:.3f}")
+    elif chi2_contingency:
+        lines.append("Not enough categories for chi-squared test of CB rank.")
 
     if size_records:
         size_vals_support = []
@@ -330,6 +360,11 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             lines.append(f"  Supportive: {mean(size_vals_support):.2f}")
             if size_vals_non:
                 lines.append(f"  Non-supportive: {mean(size_vals_non):.2f}")
+            if ttest_ind and len(size_vals_support) >= 2 and len(size_vals_non) >= 2:
+                tstat, pval = ttest_ind(size_vals_support, size_vals_non, equal_var=False)
+                lines.append(f"T-test comparing size metric: t={tstat:.2f}, p={pval:.3f}")
+            elif ttest_ind:
+                lines.append("Not enough data for t-test of size metric.")
 
     industries_all = [_industry(c) for c in companies]
     ipo_statuses = [c.ipo_status or "Unknown" for c in companies]
