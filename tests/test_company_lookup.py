@@ -288,6 +288,55 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Example justifications:", report)
         self.assertIn("Acme Corp (Support): Because open standards are good", report)
 
+    def test_excludes_non_business(self):
+        companies = [
+            Company(
+                organization_name="Acme Corp",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees="100-250",
+                full_description=None,
+                industries="Manufacturing",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Globex Institute",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees="500-1000",
+                full_description=None,
+                industries="Technology",
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+        ]
+
+        stances = [0.8, 0.4]
+        justifications = [
+            "Because open standards are good",
+            "Less interested in openness",
+        ]
+        is_biz = [True, False]
+        report = generate_final_report(
+            companies,
+            stances,
+            justifications=justifications,
+            is_business_flags=is_biz,
+        )
+        self.assertIn("Overall 1/1 companies are supportive", report)
+        self.assertNotIn("Globex Institute", report)
+
 
 class TestIndustryNormalization(unittest.TestCase):
     def _make_company(self, industries: str) -> Company:

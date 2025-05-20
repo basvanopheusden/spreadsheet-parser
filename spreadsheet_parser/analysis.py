@@ -156,11 +156,15 @@ def _industry(company: Company) -> str:
     return "Unknown"
 
 
+from .csv_reader import _is_business
+
+
 def generate_final_report(
     companies: List[Company],
     stances: List[Optional[float]],
     subcategories: Optional[List[Optional[str]]] = None,
     justifications: Optional[List[Optional[str]]] = None,
+    is_business_flags: Optional[List[Optional[bool]]] = None,
 ) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
@@ -169,6 +173,9 @@ def generate_final_report(
     ``justifications`` may provide short explanations for each company's
     stance. When supplied, a few example lines with these justifications are
     included in the final report.
+    ``is_business_flags`` allows callers to specify whether each row represents
+    a for-profit business. Any entries marked as ``False`` are ignored, as are
+    company names that fail the internal ``_is_business`` heuristic.
     """
 
     from collections import Counter, defaultdict
@@ -200,7 +207,10 @@ def generate_final_report(
     nonsupport_emp: List[float] = []
 
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
-    for company, stance, subcat in zip(companies, stances, sub_iter):
+    biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
+    for company, stance, subcat, is_biz in zip(companies, stances, sub_iter, biz_iter):
+        if is_biz is False or not _is_business(company.organization_name):
+            continue
         ind = _industry(company)
         info = industry_data[ind]
         info["total"] += 1
@@ -439,10 +449,11 @@ def generate_final_report(
         )
 
     if justifications:
+        biz_iter_all = is_business_flags if is_business_flags is not None else [None] * len(companies)
         examples = [
             (c.organization_name, s, j)
-            for c, s, j in zip(companies, stances, justifications)
-            if j
+            for c, s, j, biz in zip(companies, stances, justifications, biz_iter_all)
+            if j and biz is not False and _is_business(c.organization_name)
         ]
         if examples:
             # Select examples spread across the stance range [0, 1]
@@ -521,6 +532,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
     just_list: List[Optional[str]] = []
+    biz_list: List[Optional[bool]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
 
@@ -563,6 +575,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     justification = None
                     subcat = None
                     parsed_summary = None
+                    is_biz = None
                 else:
                     stance_val = parsed.get("supportive")
                     justification = parsed.get("justification")
@@ -572,10 +585,12 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                         or parsed.get("business_model")
                         or parsed.get("summary")
                     )
+                    is_biz = parsed.get("is_business")
 
                 stances.append(stance_val)
                 subcats.append(subcat)
                 just_list.append(justification)
+                biz_list.append(is_biz)
 
                 summary_text = re.split(
                     r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
@@ -605,6 +620,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 stances.append(None)
                 subcats.append(None)
                 just_list.append(None)
+                biz_list.append(None)
                 table_rows.append(
                     [
                         company.organization_name,
@@ -621,6 +637,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
             stances.append(None)
             subcats.append(None)
             just_list.append(None)
+            biz_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
@@ -633,7 +650,13 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 ]
             )
 
-    report = generate_final_report(companies, stances, subcats, just_list)
+    report = generate_final_report(
+        companies,
+        stances,
+        subcats,
+        just_list,
+        biz_list,
+    )
     print(report)
     print(f"Cached responses used: {cached_count}")
 
