@@ -225,8 +225,18 @@ def _parse_bool(value: object) -> Optional[bool]:
     return None
 
 
-def parse_llm_response(response: str) -> Optional[dict]:
-    """Extract sanitized fields and the ``supportive`` value from the LLM response."""
+def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Optional[dict]:
+    """Extract sanitized fields and the ``supportive`` value from the LLM response.
+
+    Parameters
+    ----------
+    response:
+        The raw text returned by the language model.
+    raise_on_missing:
+        When ``True`` and the JSON payload lacks required keys such as
+        ``"supportive"`` or ``"is_business"``, a ``KeyError`` is raised. When
+        ``False`` (the default), ``None`` is returned in that case.
+    """
 
     if not response:
         return None
@@ -247,6 +257,14 @@ def parse_llm_response(response: str) -> Optional[dict]:
             return None
         if not isinstance(data, dict):
             return None
+
+    missing = [k for k in ("supportive", "is_business") if k not in data]
+    if missing:
+        if raise_on_missing:
+            raise KeyError(
+                "Missing required field(s): " + ", ".join(sorted(missing))
+            )
+        return None
 
     supportive = _parse_support_value(data.get("supportive"))
     data["supportive"] = supportive
