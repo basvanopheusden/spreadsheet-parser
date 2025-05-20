@@ -11,6 +11,7 @@ from spreadsheet_parser.analysis import (
     _industry,
     _collect_company_data,
 )
+from spreadsheet_parser.llm import async_report_to_abstract
 from company_lookup import async_fetch_company_web_info
 from spreadsheet_parser.csv_reader import (
     read_companies_from_csv,
@@ -75,8 +76,12 @@ async def _run_async(
 
     report_path = output_dir / "final_report.txt"
     report_path.write_text(report, encoding="utf-8")
+    abstract = await async_report_to_abstract(report, model=model_name)
+    abstract_path = output_dir / "abstract.txt"
+    abstract_path.write_text(abstract or "", encoding="utf-8")
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
+    print(f"Abstract saved to {abstract_path}")
 
 # Expose the async runner for tests
 run_async = _run_async
