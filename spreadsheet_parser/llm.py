@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import inspect
 import json
+import logging
 import os
 import re
 from dataclasses import asdict
@@ -14,6 +15,9 @@ from typing import Optional, Tuple, Union
 import openai
 
 from .models import Company
+
+
+logger = logging.getLogger(__name__)
 
 
 _AI_SUBCATEGORIES = [
@@ -83,8 +87,11 @@ async def _fetch_with_cache(
     ).hexdigest()
     cache_file = cache_dir / f"{cache_key}.txt"
     if cache_file.exists():
+        logger.info("Cache hit for %s", company_name)
         content = cache_file.read_text(encoding="utf-8")
         return (content, True) if return_cache_info else content
+    else:
+        logger.info("Cache miss for %s", company_name)
 
     kwargs = {
         "model": model_name,
@@ -103,9 +110,13 @@ async def _fetch_with_cache(
     if seed is not None:
         kwargs["seed"] = seed
 
-    response = client.chat.completions.create(**kwargs)
-    if inspect.isawaitable(response):
-        response = await response
+    try:
+        response = client.chat.completions.create(**kwargs)
+        if inspect.isawaitable(response):
+            response = await response
+    except Exception:
+        logger.exception("API request failed for %s", company_name)
+        raise
 
     message = response.choices[0].message
     if isinstance(message, dict):
@@ -357,7 +368,11 @@ async def async_report_to_abstract(
     if seed is not None:
         kwargs["seed"] = seed
 
-    response = await client.chat.completions.create(**kwargs)
+    try:
+        response = await client.chat.completions.create(**kwargs)
+    except Exception:
+        logger.exception("API request failed during report summarization")
+        raise
 
     message = response.choices[0].message
     if isinstance(message, dict):
