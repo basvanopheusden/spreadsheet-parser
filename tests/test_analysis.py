@@ -1,6 +1,8 @@
 import sys
 import types
 import unittest
+import os
+from unittest.mock import patch, AsyncMock, MagicMock
 
 # Provide a minimal openai stub if the real package is unavailable
 if "openai" not in sys.modules:
@@ -21,6 +23,7 @@ if "openai" not in sys.modules:
 from datetime import datetime
 from parser import Company
 from spreadsheet_parser.analysis import _cb_rank_value, _employee_count
+from spreadsheet_parser.llm import report_to_abstract
 
 
 class TestCBRankValue(unittest.TestCase):
@@ -57,6 +60,28 @@ class TestEmployeeCount(unittest.TestCase):
 
     def test_datetime_returns_none(self):
         self.assertIsNone(_employee_count(self.make_company(datetime(2020, 1, 1))))
+
+
+class TestReportToAbstract(unittest.TestCase):
+    @patch("spreadsheet_parser.llm.openai.AsyncOpenAI", create=True)
+    @patch("spreadsheet_parser.llm.openai.OpenAI")
+    def test_prompt_contains_report(self, mock_openai, mock_async):
+        response_obj = type(
+            "Resp",
+            (),
+            {"choices": [type("Choice", (), {"message": {"content": "abs"}})]},
+        )
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(return_value=response_obj)
+        mock_async.return_value = mock_client
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "x"}):
+            result = report_to_abstract("Final Report text", model="test-model")
+
+        args, kwargs = mock_client.chat.completions.create.call_args
+        self.assertEqual(kwargs["model"], "test-model")
+        self.assertIn("Final Report text", kwargs["messages"][1]["content"])
+        self.assertEqual(result, "abs")
 
 
 if __name__ == "__main__":

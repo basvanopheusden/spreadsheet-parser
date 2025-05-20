@@ -5,7 +5,11 @@ from .models import Company
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from .llm import async_fetch_company_web_info, parse_llm_response
+from .llm import (
+    async_fetch_company_web_info,
+    parse_llm_response,
+    async_report_to_abstract,
+)
 from datetime import date, datetime
 
 DEFAULT_MAX_LINES = 5
@@ -706,6 +710,10 @@ async def run_async(
 
     report_path = output_dir / "final_report.txt"
     report_path.write_text(report, encoding="utf-8")
+    abstract = await async_report_to_abstract(report, model=model_name)
+    abstract_path = output_dir / "abstract.txt"
+    abstract_path.write_text(abstract or "", encoding="utf-8")
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
+    print(f"Abstract saved to {abstract_path}")
 

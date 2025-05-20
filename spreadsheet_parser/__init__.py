@@ -6,6 +6,8 @@ from .llm import (
     fetch_company_web_info,
     async_fetch_company_web_info,
     parse_llm_response,
+    report_to_abstract,
+    async_report_to_abstract,
 )
 from .analysis import (
     DEFAULT_MAX_LINES,
@@ -30,6 +32,8 @@ __all__ = [
     "fetch_company_web_info",
     "async_fetch_company_web_info",
     "parse_llm_response",
+    "report_to_abstract",
+    "async_report_to_abstract",
     "DEFAULT_MAX_LINES",
     "DEFAULT_MAX_CONCURRENCY",
     "generate_final_report",
