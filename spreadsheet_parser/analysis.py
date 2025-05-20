@@ -228,6 +228,8 @@ def generate_final_report(
     subcategories: Optional[List[Optional[str]]] = None,
     justifications: Optional[List[Optional[str]]] = None,
     is_business_flags: Optional[List[Optional[bool]]] = None,
+    *,
+    plot_path: Optional[Path] = None,
 ) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
@@ -242,6 +244,9 @@ def generate_final_report(
     ``is_business_flags`` allows callers to specify whether each row represents
     a for-profit business. Any entries marked as ``False`` are ignored, as are
     company names that fail the internal ``_is_business`` heuristic.
+    ``plot_path`` optionally specifies where a bar chart of supportive and
+    opposing company counts per AI sub-category should be saved. If
+    ``matplotlib`` is unavailable the graph is skipped.
     """
 
     from collections import Counter, defaultdict
@@ -602,6 +607,55 @@ def generate_final_report(
         )
     lines.append(" ".join(paragraph_parts))
 
+    if plot_path is not None:
+        try:
+            import math
+            import matplotlib.pyplot as plt  # type: ignore
+        except Exception:  # pragma: no cover - matplotlib optional
+            pass
+        else:
+            subcats_sorted = sorted(subcat_data)
+            support_counts = [subcat_data[c]["supportive"] for c in subcats_sorted]
+            oppose_counts = [subcat_data[c]["total"] - subcat_data[c]["supportive"] for c in subcats_sorted]
+            totals = [subcat_data[c]["total"] for c in subcats_sorted]
+
+            errors = [
+                math.sqrt(t * (sc / t) * (1 - sc / t)) if t else 0.0
+                for sc, t in zip(support_counts, totals)
+            ]
+
+            x = range(len(subcats_sorted))
+            width = 0.35
+            fig, ax = plt.subplots()
+            ax.bar(
+                [xi - width / 2 for xi in x],
+                support_counts,
+                width,
+                label="Support",
+                color="green",
+                yerr=errors,
+                capsize=3,
+            )
+            ax.bar(
+                [xi + width / 2 for xi in x],
+                oppose_counts,
+                width,
+                label="Oppose",
+                color="red",
+                yerr=errors,
+                capsize=3,
+            )
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(subcats_sorted, rotation=45, ha="right")
+            ax.set_xlabel("AI Sub-Category")
+            ax.set_ylabel("Company Count")
+            ax.legend()
+            plt.tight_layout()
+            p = Path(plot_path)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(p)
+            plt.close(fig)
+
     return "\n".join(lines)
 
 
@@ -768,6 +822,7 @@ async def run_async(
         subcats,
         just_list,
         biz_list,
+        plot_path=output_dir / "support_by_subcat.png",
     )
     print(report)
     print(f"Cached responses used: {cached_count}")

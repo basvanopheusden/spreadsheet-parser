@@ -124,6 +124,11 @@ The full text report is then submitted to the same language model and rewritten
 as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
 
+If the optional ``matplotlib`` package is installed, a ``support_by_subcat.png``
+image is also created showing supportive and opposing company counts per AI
+sub-category. The bars include simple binomial error bars and are colored
+green/red for support and opposition respectively.
+
 Example snippet:
 
 ```text
