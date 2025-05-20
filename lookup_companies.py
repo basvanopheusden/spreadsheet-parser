@@ -160,7 +160,11 @@ def _industry(company: Company) -> str:
 
     return "Unknown"
 
-def generate_final_report(companies: List[Company], stances: List[Optional[float]]) -> str:
+def generate_final_report(
+    companies: List[Company],
+    stances: List[Optional[float]],
+    subcategories: Optional[List[Optional[str]]] = None,
+) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
     ``stances`` should contain numeric values between 0 and 1 where higher
@@ -177,6 +181,7 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
         chi2_contingency = None
 
     industry_data = defaultdict(lambda: {"supportive": 0, "total": 0, "stances": []})
+    subcat_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     ipo_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     revenue_data = defaultdict(lambda: {"supportive": 0, "total": 0})
     rank_data = defaultdict(lambda: {"supportive": 0, "total": 0})
@@ -187,12 +192,19 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
 
-    for company, stance in zip(companies, stances):
+    sub_iter = subcategories if subcategories is not None else [None] * len(companies)
+    for company, stance, subcat in zip(companies, stances, sub_iter):
         ind = _industry(company)
         info = industry_data[ind]
         info["total"] += 1
         if stance is not None:
             info["stances"].append(stance)
+
+        sc = subcat or "Uncategorized"
+        sc_info = subcat_data[sc]
+        sc_info["total"] += 1
+        if stance is not None and stance >= 0.5:
+            sc_info["supportive"] += 1
 
         ipo_cat = _ipo_category(company.ipo_status)
         ipo_info = ipo_data[ipo_cat]
@@ -264,6 +276,11 @@ def generate_final_report(companies: List[Company], stances: List[Optional[float
             lines.append(f"  {ind}: {mean(st_list):.2f}")
         else:
             lines.append(f"  {ind}: n/a")
+
+    lines.append("\nSupport by AI sub-category:")
+    for cat in sorted(subcat_data):
+        d = subcat_data[cat]
+        lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
 
     if support_emp and (support_emp or nonsupport_emp):
         avg_support_size = mean(support_emp)
@@ -424,6 +441,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
 
     stances: List[Optional[float]] = []
+    subcats: List[Optional[str]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
 
@@ -440,6 +458,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     for company, result in zip(companies, results):
         if isinstance(result, Exception):
             stances.append(None)
+            subcats.append(None)
             table_rows.append([
                 company.organization_name,
                 _industry(company),
@@ -459,10 +478,13 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 if parsed is None:
                     stance_val = None
                     justification = None
+                    subcat = None
                 else:
                     stance_val = parsed.get("supportive")
                     justification = parsed.get("justification")
+                    subcat = parsed.get("sub_category")
                 stances.append(stance_val)
+                subcats.append(subcat)
                 summary_text = re.split(r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL)[0].strip()
                 if stance_val is None:
                     stance_label = "Unknown"
@@ -473,6 +495,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 table_rows.append([
                     company.organization_name,
                     _industry(company),
+                    subcat or "",
                     summary_text,
                     stance_label,
                     justification or summary_text,
@@ -480,9 +503,11 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 ])
             else:
                 stances.append(None)
+                subcats.append(None)
                 table_rows.append([
                     company.organization_name,
                     _industry(company),
+                    "",
                     "",
                     "Unknown",
                     "",
@@ -491,16 +516,18 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
 
         else:
             stances.append(None)
+            subcats.append(None)
             table_rows.append([
                 company.organization_name,
                 _industry(company),
+                "",
                 "",
                 "Unknown",
                 "",
                 "",
             ])
 
-    report = generate_final_report(companies, stances)
+    report = generate_final_report(companies, stances, subcats)
     print(report)
     print(f"Cached responses used: {cached_count}")
 
@@ -512,6 +539,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
             [
                 "Company Name",
                 "Industry",
+                "AI Sub-Category",
                 "Business Model Summary",
                 "Likely Stance on Interoperability",
                 "Qualitative Justification",

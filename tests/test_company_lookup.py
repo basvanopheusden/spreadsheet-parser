@@ -75,12 +75,13 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     self.assertIn("Palantir", user_content)
                     self.assertIn("Return ONLY a JSON code block", user_content)
                     self.assertIn("```json", user_content)
+                    self.assertIn("sub_category", user_content)
 
     def test_parse_llm_response(self):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"organization_name": "Acme", "supportive": 0.75}'
+            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI"}'
             "\n```"
         )
         result = parse_llm_response(text)
@@ -88,6 +89,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertAlmostEqual(result.get("supportive"), 0.75)
         self.assertEqual(result.get("organization_name"), "Acme")
+        self.assertEqual(result.get("sub_category"), "Generative AI")
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -356,8 +358,8 @@ class TestRunAsync(unittest.TestCase):
         self.assertEqual(rows[0][0], "Company Name")
         acme = rows[1]
         globex = rows[2]
-        self.assertNotEqual(acme[2], acme[4])
-        self.assertEqual(globex[2], globex[4])
+        self.assertNotEqual(acme[3], acme[5])
+        self.assertEqual(globex[3], globex[5])
 
 if __name__ == '__main__':
     unittest.main()
