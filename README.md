@@ -30,14 +30,14 @@ and later analysis.
 4. Import the reader function and parse your data:
 
 ```python
-from parser import read_companies_from_csv
+from spreadsheet_parser import read_companies_from_csv
 
 companies = read_companies_from_csv("companies.csv")
 for company in companies:
     print(company.organization_name, company.ipo_status)
 ```
 
-The `Company` dataclass defined in `parser.py` mirrors the columns listed above and
+The `Company` dataclass defined in `spreadsheet_parser.models` mirrors the columns listed above and
 serves as a convenient container for the parsed information.
 
 This setup can be extended to support more advanced analysis or integration with
