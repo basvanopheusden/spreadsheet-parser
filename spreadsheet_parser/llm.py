@@ -122,6 +122,7 @@ def fetch_company_web_info(
     *,
     seed: Optional[int] = None,
     return_cache_info: bool = False,
+    client: Optional[openai.OpenAI] = None,
 ) -> Union[Optional[str], Tuple[Optional[str], bool]]:
     """Ask an LLM to search the web for company information."""
 
@@ -129,7 +130,10 @@ def fetch_company_web_info(
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY environment variable not set")
 
-    client = openai.OpenAI(api_key=api_key)
+    needs_close = False
+    if client is None:
+        client = openai.OpenAI(api_key=api_key)
+        needs_close = True
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
 
@@ -141,15 +145,22 @@ def fetch_company_web_info(
             except ValueError:
                 seed = None
 
-    return asyncio.run(
-        _fetch_with_cache(
-            company,
-            client,
-            model_name,
-            seed,
-            return_cache_info,
+    try:
+        return asyncio.run(
+            _fetch_with_cache(
+                company,
+                client,
+                model_name,
+                seed,
+                return_cache_info,
+            )
         )
-    )
+    finally:
+        if needs_close:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 
 async def async_fetch_company_web_info(
@@ -158,6 +169,7 @@ async def async_fetch_company_web_info(
     *,
     seed: Optional[int] = None,
     return_cache_info: bool = False,
+    client: Optional[openai.AsyncOpenAI] = None,
 ) -> Union[Optional[str], Tuple[Optional[str], bool]]:
     """Asynchronously fetch company info using OpenAI."""
 
@@ -165,7 +177,10 @@ async def async_fetch_company_web_info(
     if not api_key:
         raise EnvironmentError("OPENAI_API_KEY environment variable not set")
 
-    client = openai.AsyncOpenAI(api_key=api_key)
+    needs_close = False
+    if client is None:
+        client = openai.AsyncOpenAI(api_key=api_key)
+        needs_close = True
 
     model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
 
@@ -177,13 +192,20 @@ async def async_fetch_company_web_info(
             except ValueError:
                 seed = None
 
-    return await _fetch_with_cache(
-        company,
-        client,
-        model_name,
-        seed,
-        return_cache_info,
-    )
+    try:
+        return await _fetch_with_cache(
+            company,
+            client,
+            model_name,
+            seed,
+            return_cache_info,
+        )
+    finally:
+        if needs_close:
+            try:
+                await client.aclose()
+            except Exception:
+                pass
 
 
 def _parse_support_value(value: object) -> Optional[float]:
