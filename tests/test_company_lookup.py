@@ -106,35 +106,35 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         bad_json = "```json\n{bad}\n```"
         self.assertIsNone(parse_llm_response(bad_json))
 
-        text_yes = '```json\n{"supportive": "yes"}\n```'
+        text_yes = '```json\n{"supportive": "yes", "is_business": true}\n```'
         self.assertEqual(parse_llm_response(text_yes)["supportive"], 1.0)
 
-        text_no = '```json\n{"supportive": "no"}\n```'
+        text_no = '```json\n{"supportive": "no", "is_business": true}\n```'
         self.assertEqual(parse_llm_response(text_no)["supportive"], 0.0)
 
-        text_str_number = '```json\n{"supportive": "0.25"}\n```'
+        text_str_number = '```json\n{"supportive": "0.25", "is_business": true}\n```'
         self.assertAlmostEqual(parse_llm_response(text_str_number)["supportive"], 0.25)
 
-        text_out_of_range = '```json\n{"supportive": 1.5}\n```'
+        text_out_of_range = '```json\n{"supportive": 1.5, "is_business": true}\n```'
         result = parse_llm_response(text_out_of_range)
         self.assertIsNotNone(result)
         self.assertIsNone(result.get("supportive"))
 
-        bool_yes = '```json\n{"is_business": "yes"}\n```'
+        bool_yes = '```json\n{"supportive": 0.5, "is_business": "yes"}\n```'
         self.assertTrue(parse_llm_response(bool_yes)["is_business"])
 
-        bool_no = '```json\n{"is_business": "no"}\n```'
+        bool_no = '```json\n{"supportive": 0.5, "is_business": "no"}\n```'
         self.assertFalse(parse_llm_response(bool_no)["is_business"])
 
     def test_parse_llm_response_no_label(self):
-        text = "Intro.\n" "```\n" '{"supportive": 0.6}' "\n```"
+        text = "Intro.\n" "```\n" '{"supportive": 0.6, "is_business": true}' "\n```"
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
         self.assertIsInstance(result, dict)
         self.assertAlmostEqual(result.get("supportive"), 0.6)
 
     def test_parse_llm_response_single_quotes(self):
-        text = "Intro.\n" "```json\n" "{'supportive': '0.3'}" "\n```"
+        text = "Intro.\n" "```json\n" "{'supportive': '0.3', 'is_business': True}" "\n```"
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
         self.assertIsInstance(result, dict)
@@ -144,7 +144,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         text = (
             "Intro.\n"
             "```json\n"
-            '{"organization_name": "O\'Reilly", "supportive": 0.6}'
+            '{"organization_name": "O\'Reilly", "supportive": 0.6, "is_business": True}'
             "\n```"
         )
         result = parse_llm_response(text)
@@ -152,6 +152,18 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("organization_name"), "O'Reilly")
         self.assertAlmostEqual(result.get("supportive"), 0.6)
+
+    def test_parse_llm_response_missing_keys(self):
+        only_support = '```json\n{"supportive": 0.5}\n```'
+        self.assertIsNone(parse_llm_response(only_support))
+
+        only_business = '```json\n{"is_business": True}\n```'
+        self.assertIsNone(parse_llm_response(only_business))
+
+    def test_parse_llm_response_missing_keys_raise(self):
+        text = '```json\n{"supportive": 0.5}\n```'
+        with self.assertRaises(KeyError):
+            parse_llm_response(text, raise_on_missing=True)
 
     @patch("company_lookup.openai.OpenAI")
     def test_cache_reused_for_same_seed(self, mock_openai):
@@ -373,10 +385,15 @@ class TestRunAsync(unittest.TestCase):
             "Acme Corp": (
                 "Summary one.\n"
                 "```json\n"
-                '{"supportive": 0.9, "justification": "Because open standards are good"}'
+                '{"supportive": 0.9, "is_business": true, "justification": "Because open standards are good"}'
                 "\n```"
             ),
-            "Globex Inc": ("Summary two.\n" "```json\n" '{"supportive": 0.4}' "\n```"),
+            "Globex Inc": (
+                "Summary two.\n"
+                "```json\n"
+                '{"supportive": 0.4, "is_business": true}'
+                "\n```"
+            ),
         }
 
         async def fake_fetch(name, *, return_cache_info=False):
