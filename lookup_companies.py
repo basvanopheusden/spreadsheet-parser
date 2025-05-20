@@ -62,6 +62,7 @@ async def _run_async(
             stances.append(None)
             subcats.append(None)
             just_list.append(None)
+            biz_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
