@@ -4,7 +4,7 @@ import pathlib
 import unittest
 
 if "openai" not in sys.modules:
-    openai_stub = types.SimpleNamespace(ChatCompletion=types.SimpleNamespace(create=lambda **kwargs: None), OpenAI=lambda *a, **kw: None)
+    openai_stub = types.SimpleNamespace(OpenAI=lambda *a, **kw: None)
     sys.modules["openai"] = openai_stub
 
 from parser import read_companies_from_csv

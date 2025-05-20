@@ -93,36 +93,28 @@ async def _fetch_with_cache(
     else:
         logger.info("Cache miss for %s", company_name)
 
+    input_text = (
+        "You are an assistant that can access web search results "
+        "to provide up-to-date company information.\n" + prompt
+    )
+
     kwargs = {
         "model": model_name,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are an assistant that can access web search results "
-                    "to provide up-to-date company information."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
-        "tools": [{"type": "web_search"}],
+        "input": input_text,
+        "tools": [{"type": "web_search_preview"}],
     }
     if seed is not None:
         kwargs["seed"] = seed
 
     try:
-        response = client.chat.completions.create(**kwargs)
+        response = client.responses.create(**kwargs)
         if inspect.isawaitable(response):
             response = await response
     except Exception:
         logger.exception("API request failed for %s", company_name)
         raise
 
-    message = response.choices[0].message
-    if isinstance(message, dict):
-        content = message.get("content")
-    else:
-        content = getattr(message, "content", None)
+    content = getattr(response, "output_text", None)
 
     if content is not None:
         cache_file.write_text(content, encoding="utf-8")
@@ -347,37 +339,24 @@ async def async_report_to_abstract(
             except ValueError:
                 seed = None
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You transform reports into concise scientific paper abstracts."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                "Rewrite the following report as a scientific paper abstract, "
-                "highlighting the conclusions and referencing key statistics.\n\n"
-                + report
-            ),
-        },
-    ]
+    input_text = (
+        "You transform reports into concise scientific paper abstracts.\n"
+        "Rewrite the following report as a scientific paper abstract, "
+        "highlighting the conclusions and referencing key statistics.\n\n"
+        + report
+    )
 
-    kwargs = {"model": model_name, "messages": messages}
+    kwargs = {"model": model_name, "input": input_text}
     if seed is not None:
         kwargs["seed"] = seed
 
     try:
-        response = await client.chat.completions.create(**kwargs)
+        response = await client.responses.create(**kwargs)
     except Exception:
         logger.exception("API request failed during report summarization")
         raise
 
-    message = response.choices[0].message
-    if isinstance(message, dict):
-        return message.get("content")
-    return getattr(message, "content", None)
+    return getattr(response, "output_text", None)
 
 
 def report_to_abstract(

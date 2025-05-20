@@ -55,6 +55,21 @@ variable and, optionally, an ``OPENAI_MODEL`` variable to choose the model. If n
 model is specified, it defaults to ``gpt-4o``. The command-line tool described
 below also accepts a ``--model-name`` argument to override this value.
 
+The project now relies on ``openai==1.79.0``. Direct API calls use the updated
+``OpenAI`` client:
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+response = client.responses.create(
+    model="gpt-4.1",
+    tools=[{"type": "web_search_preview"}],
+    input="What was a positive news story from today?",
+)
+print(response.output_text)
+```
+
 You may provide just the company name or pass a `Company` object returned from
 `read_companies_from_csv` or `read_companies_from_xlsx`. 
 When a dataclass is supplied, all details from the CSV
