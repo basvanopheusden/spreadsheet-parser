@@ -183,6 +183,35 @@ def _industry(company: Company) -> str:
 from .csv_reader import _is_business
 
 
+def percentile_ranks(values: List[Optional[float]]) -> List[Optional[float]]:
+    """Return percentile ranks between 0 and 1 for each numeric value.
+
+    ``None`` or non-numeric entries yield ``None`` in the output list. Tied
+    values receive the same percentile based on their average rank.
+    """
+
+    pairs = [(idx, float(v)) for idx, v in enumerate(values) if isinstance(v, (int, float))]
+    if not pairs:
+        return [None] * len(values)
+
+    pairs.sort(key=lambda x: x[1])
+    n = len(pairs)
+    result: List[Optional[float]] = [None] * len(values)
+    i = 0
+    while i < n:
+        val = pairs[i][1]
+        j = i + 1
+        while j < n and pairs[j][1] == val:
+            j += 1
+        rank_avg = (i + 1 + j) / 2.0
+        perc = (rank_avg - 0.5) / n
+        for k in range(i, j):
+            result[pairs[k][0]] = perc
+        i = j
+
+    return result
+
+
 def generate_final_report(
     companies: List[Company],
     stances: List[Optional[float]],
