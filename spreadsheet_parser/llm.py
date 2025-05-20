@@ -280,3 +280,69 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
     data["is_business"] = is_business
 
     return data
+
+
+async def async_report_to_abstract(
+    report: str,
+    model: Optional[str] = None,
+    *,
+    seed: Optional[int] = None,
+) -> Optional[str]:
+    """Summarize a report as a scientific paper abstract using an LLM."""
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise EnvironmentError("OPENAI_API_KEY environment variable not set")
+
+    client = openai.AsyncOpenAI(api_key=api_key)
+
+    model_name = model or os.getenv("OPENAI_MODEL") or "gpt-4o"
+
+    if seed is None:
+        env_seed = os.getenv("OPENAI_SEED")
+        if env_seed is not None:
+            try:
+                seed = int(env_seed)
+            except ValueError:
+                seed = None
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You transform reports into concise scientific paper abstracts."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "Rewrite the following report as a scientific paper abstract, "
+                "highlighting the conclusions and referencing key statistics.\n\n"
+                + report
+            ),
+        },
+    ]
+
+    kwargs = {"model": model_name, "messages": messages}
+    if seed is not None:
+        kwargs["seed"] = seed
+
+    response = await client.chat.completions.create(**kwargs)
+
+    message = response.choices[0].message
+    if isinstance(message, dict):
+        return message.get("content")
+    return getattr(message, "content", None)
+
+
+def report_to_abstract(
+    report: str,
+    model: Optional[str] = None,
+    *,
+    seed: Optional[int] = None,
+) -> Optional[str]:
+    """Synchronous wrapper for :func:`async_report_to_abstract`."""
+
+    return asyncio.run(
+        async_report_to_abstract(report, model, seed=seed)
+    )

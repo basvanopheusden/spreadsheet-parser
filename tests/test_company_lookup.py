@@ -437,8 +437,9 @@ class TestIndustryNormalization(unittest.TestCase):
 
 
 class TestRunAsync(unittest.TestCase):
+    @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
     @patch("lookup_companies.async_fetch_company_web_info")
-    def test_qualitative_justification_column(self, mock_fetch):
+    def test_qualitative_justification_column(self, mock_fetch, mock_abstract):
         responses = {
             "Acme Corp": (
                 "Summary one.\n"
@@ -458,6 +459,7 @@ class TestRunAsync(unittest.TestCase):
             return (responses[name], False)
 
         mock_fetch.side_effect = fake_fetch
+        mock_abstract.return_value = "Abstract"
 
         companies = [
             Company(
@@ -495,8 +497,10 @@ class TestRunAsync(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
             csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
+            abstract_path = pathlib.Path(tmpdir) / "abstract.txt"
             with csv_path.open(newline="") as f:
                 rows = list(csv.reader(f))
+            self.assertTrue(abstract_path.exists())
 
         self.assertEqual(rows[0][0], "Company Name")
         acme = rows[1]

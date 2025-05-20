@@ -102,6 +102,9 @@ installed, statistical tests are included in the report. T-tests compare
 employee counts and the derived size metric between supportive and
 non-supportive companies, while chi-squared tests examine whether IPO status,
 revenue range or CB rank are associated with support levels.
+The full text report is then submitted to the same language model and rewritten
+as a concise scientific paper abstract. This abstract is saved as
+``abstract.txt`` in the chosen output directory.
 
 Example snippet:
 
