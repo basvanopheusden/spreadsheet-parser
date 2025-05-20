@@ -2,8 +2,10 @@ from pathlib import Path
 from argparse import ArgumentParser
 import asyncio
 import csv
+import os
 import re
 
+import openai
 from spreadsheet_parser.analysis import (
     generate_final_report,
     DEFAULT_MAX_LINES,
@@ -34,6 +36,7 @@ async def _run_async(
     model_name: str = "gpt-4o",
 ) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
+    client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
@@ -48,6 +51,7 @@ async def _run_async(
                 company.organization_name,
                 model=model_name,
                 return_cache_info=True,
+                client=client,
             )
 
     tasks = [asyncio.create_task(fetch(c)) for c in companies]
@@ -189,6 +193,8 @@ async def _run_async(
     report_path.write_text(report, encoding="utf-8")
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
+
+    await client.aclose()
 
 # Expose the async runner for tests
 run_async = _run_async

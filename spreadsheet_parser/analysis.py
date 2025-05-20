@@ -1,6 +1,8 @@
 import asyncio
 import csv
+import os
 import re
+import openai
 from .models import Company
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -556,7 +558,9 @@ async def run_async(
     model_name: str = "gpt-4o",
 ) -> None:
     from lookup_companies import async_fetch_company_web_info
+
     semaphore = asyncio.Semaphore(max_concurrency)
+    client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
@@ -571,6 +575,7 @@ async def run_async(
                 company.organization_name,
                 model=model_name,
                 return_cache_info=True,
+                client=client,
             )
 
     tasks = [asyncio.create_task(fetch(c)) for c in companies]
@@ -716,4 +721,6 @@ async def run_async(
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
     print(f"Abstract saved to {abstract_path}")
+
+    await client.aclose()
 

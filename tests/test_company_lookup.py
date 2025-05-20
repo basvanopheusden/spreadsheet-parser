@@ -195,6 +195,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
     @patch("company_lookup.openai.AsyncOpenAI", create=True)
     def test_async_cache_reused_for_same_seed(self, mock_async_openai):
         mock_client = mock_async_openai.return_value
+        mock_client.aclose = AsyncMock()
 
         async def fake_create(**kwargs):
             return type(
@@ -249,6 +250,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
     @patch("company_lookup.openai.AsyncOpenAI", create=True)
     def test_async_cache_not_reused_for_different_model(self, mock_async_openai):
         mock_client = mock_async_openai.return_value
+        mock_client.aclose = AsyncMock()
 
         async def fake_create(**kwargs):
             return type(
@@ -455,7 +457,7 @@ class TestRunAsync(unittest.TestCase):
             ),
         }
 
-        async def fake_fetch(name, *, return_cache_info=False, model=None):
+        async def fake_fetch(name, *, return_cache_info=False, model=None, client=None):
             return (responses[name], False)
 
         mock_fetch.side_effect = fake_fetch
