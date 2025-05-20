@@ -82,6 +82,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     self.assertIn("Return ONLY a JSON code block", user_content)
                     self.assertIn("```json", user_content)
                     self.assertIn("sub_category", user_content)
+                    self.assertIn("justification", user_content)
 
     def test_parse_llm_response(self):
         text = (

@@ -66,7 +66,8 @@ async def _fetch_with_cache(
         "Classify the company using one of these AI sub-categories: "
         f"{taxonomy_list}. "
         "Return ONLY a JSON code block containing the sanitized fields along "
-        "with a 'sub_category' string and numeric 'supportive' value."
+        "with a 'sub_category' string, numeric 'supportive' value, and a "
+        "brief 'justification' for the rating."
     )
 
     cache_dir = Path.home() / "llm_cache"
