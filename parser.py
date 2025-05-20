@@ -1,3 +1,5 @@
+"""Thin compatibility layer that re-exports spreadsheet parsing helpers."""
+
 from spreadsheet_parser import (
     Company,
     read_companies_from_csv,

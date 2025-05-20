@@ -591,10 +591,21 @@ def generate_final_report(
 
 
 async def _make_client():
-    """Return an OpenAI client compatible with old and new libraries."""
+    """Return an OpenAI client compatible with old and new libraries.
+
+    Raises
+    ------
+    EnvironmentError
+        If ``OPENAI_API_KEY`` is not defined in the environment.
+    """
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise EnvironmentError("OPENAI_API_KEY environment variable not set")
+
     if hasattr(openai, "AsyncOpenAI"):
-        return openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    return openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        return openai.AsyncOpenAI(api_key=api_key)
+    return openai.OpenAI(api_key=api_key)
 
 
 async def _collect_company_data(
@@ -611,7 +622,10 @@ async def _collect_company_data(
 ]:
     """Fetch and parse web info for each company."""
 
-    from lookup_companies import async_fetch_company_web_info
+    # Import ``async_fetch_company_web_info`` directly from ``company_lookup``
+    # rather than through ``lookup_companies`` so tests can patch the function
+    # at its canonical location.
+    from company_lookup import async_fetch_company_web_info
 
     semaphore = asyncio.Semaphore(max_concurrency)
     client = await _make_client()
