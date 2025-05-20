@@ -1,4 +1,5 @@
 import csv
+import re
 from pathlib import Path
 from typing import Dict, List, Union
 
@@ -8,6 +9,22 @@ from .models import Company, CANONICAL_HEADERS
 def _sanitize(text: str) -> str:
     """Normalize header names for matching."""
     return "".join(ch.lower() for ch in text if ch.isalnum())
+
+
+_EXCLUDE_PATTERNS = [
+    r"\binstitute\b",
+    r"\buniversity\b",
+    r"\bcollege\b",
+    r"\bfoundation\b",
+    r"\bcentre\b",
+    r"\bcenter\b",
+]
+
+
+def _is_business(name: str) -> bool:
+    """Return True if the name appears to describe a business."""
+    text = name.lower()
+    return not any(re.search(pat, text) for pat in _EXCLUDE_PATTERNS)
 
 
 def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
@@ -45,6 +62,9 @@ def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
                 else:
                     kwargs[attr] = value if value != "" else None
 
-            companies.append(Company(**kwargs))
+            company = Company(**kwargs)
+            if not _is_business(company.organization_name):
+                continue
+            companies.append(company)
 
     return companies

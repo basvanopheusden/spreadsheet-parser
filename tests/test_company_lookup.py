@@ -79,16 +79,17 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
                     )
                     self.assertIn("Mozilla", user_content)
                     self.assertIn("Palantir", user_content)
-                    self.assertIn("Return ONLY a JSON code block", user_content)
-                    self.assertIn("```json", user_content)
-                    self.assertIn("sub_category", user_content)
-                    self.assertIn("justification", user_content)
+        self.assertIn("Return ONLY a JSON code block", user_content)
+        self.assertIn("```json", user_content)
+        self.assertIn("sub_category", user_content)
+        self.assertIn("justification", user_content)
+        self.assertIn("is_business", user_content)
 
     def test_parse_llm_response(self):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI"}'
+            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI", "is_business": true}'
             "\n```"
         )
         result = parse_llm_response(text)
@@ -97,6 +98,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertAlmostEqual(result.get("supportive"), 0.75)
         self.assertEqual(result.get("organization_name"), "Acme")
         self.assertEqual(result.get("sub_category"), "Generative AI")
+        self.assertTrue(result.get("is_business"))
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -117,6 +119,12 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         result = parse_llm_response(text_out_of_range)
         self.assertIsNotNone(result)
         self.assertIsNone(result.get("supportive"))
+
+        bool_yes = '```json\n{"is_business": "yes"}\n```'
+        self.assertTrue(parse_llm_response(bool_yes)["is_business"])
+
+        bool_no = '```json\n{"is_business": "no"}\n```'
+        self.assertFalse(parse_llm_response(bool_no)["is_business"])
 
     def test_parse_llm_response_no_label(self):
         text = "Intro.\n" "```\n" '{"supportive": 0.6}' "\n```"

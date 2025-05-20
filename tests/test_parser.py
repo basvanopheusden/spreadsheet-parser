@@ -61,6 +61,12 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
         self.assertEqual(len(companies), 1)
         self.assertIn("√", companies[0].organization_name)
 
+    def test_excludes_non_business(self):
+        path = pathlib.Path(__file__).parent / "data" / "companies_non_business.csv"
+        companies = read_companies_from_csv(path)
+        names = [c.organization_name for c in companies]
+        self.assertEqual(names, ["Acme Corp", "Globex Inc"])
+
 
 if __name__ == "__main__":
     unittest.main()

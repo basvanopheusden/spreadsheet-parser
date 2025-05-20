@@ -65,9 +65,13 @@ async def _fetch_with_cache(
         "while Meta and Palantir might be near 0. "
         "Classify the company using one of these AI sub-categories: "
         f"{taxonomy_list}. "
+        "Indicate whether this is a legitimate for-profit business that earns "
+        "revenue through selling products or services. If it is instead a "
+        "research institute, advocacy organization, or other non-business "
+        "corporation, mark it accordingly. "
         "Return ONLY a JSON code block containing the sanitized fields along "
-        "with a 'sub_category' string, numeric 'supportive' value, and a "
-        "brief 'justification' for the rating."
+        "with a 'sub_category' string, numeric 'supportive' value, a boolean "
+        "'is_business', and a brief 'justification' for the rating."
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -207,6 +211,20 @@ def _parse_support_value(value: object) -> Optional[float]:
     return None
 
 
+def _parse_bool(value: object) -> Optional[bool]:
+    """Return ``True`` or ``False`` for common boolean-like strings."""
+
+    if isinstance(value, bool):
+        return value
+
+    text = str(value).strip().lower()
+    if text in {"true", "yes", "1"}:
+        return True
+    if text in {"false", "no", "0"}:
+        return False
+    return None
+
+
 def parse_llm_response(response: str) -> Optional[dict]:
     """Extract sanitized fields and the ``supportive`` value from the LLM response."""
 
@@ -238,5 +256,8 @@ def parse_llm_response(response: str) -> Optional[dict]:
         data["sub_category"] = subcat.strip()
     else:
         data["sub_category"] = None
+
+    is_business = _parse_bool(data.get("is_business"))
+    data["is_business"] = is_business
 
     return data
