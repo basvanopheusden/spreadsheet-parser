@@ -527,6 +527,7 @@ def generate_final_report(
 
 
 async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
+    from lookup_companies import async_fetch_company_web_info
     semaphore = asyncio.Semaphore(max_concurrency)
 
     stances: List[Optional[float]] = []
