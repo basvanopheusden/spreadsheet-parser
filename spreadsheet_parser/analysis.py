@@ -526,7 +526,13 @@ def generate_final_report(
     return "\n".join(lines)
 
 
-async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
+async def run_async(
+    companies,
+    max_concurrency: int,
+    output_dir: Path,
+    *,
+    model_name: str = "gpt-4o",
+) -> None:
     from lookup_companies import async_fetch_company_web_info
     semaphore = asyncio.Semaphore(max_concurrency)
 
@@ -541,6 +547,7 @@ async def run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         async with semaphore:
             return await async_fetch_company_web_info(
                 company.organization_name,
+                model=model_name,
                 return_cache_info=True,
             )
 

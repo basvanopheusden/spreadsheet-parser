@@ -26,7 +26,13 @@ __all__ = [
     "main",
 ]
 
-async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
+async def _run_async(
+    companies,
+    max_concurrency: int,
+    output_dir: Path,
+    *,
+    model_name: str = "gpt-4o",
+) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
 
     stances: List[Optional[float]] = []
@@ -40,6 +46,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         async with semaphore:
             return await async_fetch_company_web_info(
                 company.organization_name,
+                model=model_name,
                 return_cache_info=True,
             )
 
@@ -209,6 +216,11 @@ def main() -> None:
         default=Path.cwd(),
         help="Directory where the final report and table will be saved",
     )
+    parser.add_argument(
+        "--model-name",
+        default="gpt-4o",
+        help="OpenAI model to use when fetching web summaries",
+    )
     args = parser.parse_args()
 
     if args.csv.suffix.lower() in {".xlsx", ".xls", ".xlsm"}:
@@ -232,7 +244,14 @@ def main() -> None:
 
     to_process = companies[: args.max_lines]
 
-    asyncio.run(run_async(to_process, args.max_concurrency, args.output_dir))
+    asyncio.run(
+        run_async(
+            to_process,
+            args.max_concurrency,
+            args.output_dir,
+            model_name=args.model_name,
+        )
+    )
 
 
 if __name__ == "__main__":

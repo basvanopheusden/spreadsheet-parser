@@ -220,6 +220,60 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
 
         self.assertEqual(mock_client.chat.completions.create.call_count, 1)
 
+    @patch("company_lookup.openai.OpenAI")
+    def test_cache_not_reused_for_different_model(self, mock_openai):
+        mock_client = mock_openai.return_value
+        mock_client.chat.completions.create.return_value = type(
+            "Resp",
+            (),
+            {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("pathlib.Path.home", return_value=pathlib.Path(tmpdir)):
+                with patch.dict(
+                    os.environ,
+                    {
+                        "OPENAI_API_KEY": "test-key",
+                        "OPENAI_SEED": "123",
+                    },
+                ):
+                    fetch_company_web_info("Acme Corp", model="model-a")
+                    fetch_company_web_info("Acme Corp", model="model-b")
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+
+    @patch("company_lookup.openai.AsyncOpenAI", create=True)
+    def test_async_cache_not_reused_for_different_model(self, mock_async_openai):
+        mock_client = mock_async_openai.return_value
+
+        async def fake_create(**kwargs):
+            return type(
+                "Resp",
+                (),
+                {"choices": [type("Choice", (), {"message": {"content": "ok"}})]},
+            )
+
+        mock_client.chat.completions.create = AsyncMock(side_effect=fake_create)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("pathlib.Path.home", return_value=pathlib.Path(tmpdir)):
+                with patch.dict(
+                    os.environ,
+                    {
+                        "OPENAI_API_KEY": "test-key",
+                        "OPENAI_SEED": "123",
+                    },
+                ):
+                    asyncio.run(
+                        async_fetch_company_web_info("Acme Corp", model="model-a")
+                    )
+                    asyncio.run(
+                        async_fetch_company_web_info("Acme Corp", model="model-b")
+                    )
+
+        self.assertEqual(mock_client.chat.completions.create.call_count, 2)
+
 
 class TestFinalReport(unittest.TestCase):
     def test_generate_final_report(self):
@@ -397,7 +451,7 @@ class TestRunAsync(unittest.TestCase):
             ),
         }
 
-        async def fake_fetch(name, *, return_cache_info=False):
+        async def fake_fetch(name, *, return_cache_info=False, model=None):
             return (responses[name], False)
 
         mock_fetch.side_effect = fake_fetch
