@@ -222,7 +222,10 @@ def generate_final_report(
     """Generate a more detailed summary of stance coverage per industry.
 
     ``stances`` should contain numeric values between 0 and 1 where higher
-    numbers indicate stronger support for interoperability legislation.
+    numbers indicate stronger support for interoperability legislation. The
+    scores are converted to percentile ranks in the ``[0, 1]`` range and all
+    subsequent metrics, including statistical tests, are computed from these
+    percentile values.
     ``justifications`` may provide short explanations for each company's
     stance. When supplied, a few example lines with these justifications are
     included in the final report.
@@ -259,45 +262,53 @@ def generate_final_report(
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
 
+    percentiles = percentile_ranks(stances)
+    # Use percentile ranks for all downstream calculations
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
     biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
-    for company, stance, subcat, is_biz in zip(companies, stances, sub_iter, biz_iter):
+    for company, stance, perc, subcat, is_biz in zip(
+        companies,
+        stances,
+        percentiles,
+        sub_iter,
+        biz_iter,
+    ):
         if is_biz is False or not _is_business(company.organization_name):
             continue
         ind = _industry(company)
         info = industry_data[ind]
         info["total"] += 1
-        if stance is not None:
-            info["stances"].append(stance)
+        if perc is not None:
+            info["stances"].append(perc)
 
         sc = subcat or "Uncategorized"
         sc_info = subcat_data[sc]
         sc_info["total"] += 1
-        if stance is not None:
-            subcat_top[sc].append((stance, company.organization_name))
-            if stance >= 0.5:
+        if perc is not None:
+            subcat_top[sc].append((perc, company.organization_name))
+            if perc >= 0.5:
                 sc_info["supportive"] += 1
 
         ipo_cat = _ipo_category(company.ipo_status)
         ipo_info = ipo_data[ipo_cat]
         ipo_info["total"] += 1
-        if stance is not None and stance >= 0.5:
+        if perc is not None and perc >= 0.5:
             ipo_info["supportive"] += 1
 
         rev_cat = _revenue_category(company.estimated_revenue_range)
         rev_info = revenue_data[rev_cat]
         rev_info["total"] += 1
-        if stance is not None and stance >= 0.5:
+        if perc is not None and perc >= 0.5:
             rev_info["supportive"] += 1
 
         rank_cat = _cb_rank_category(company.cb_rank)
         rank_info = rank_data[rank_cat]
         rank_info["total"] += 1
-        if stance is not None and stance >= 0.5:
+        if perc is not None and perc >= 0.5:
             rank_info["supportive"] += 1
 
         emp = _employee_count(company)
-        if stance is not None and stance >= 0.5:
+        if perc is not None and perc >= 0.5:
             info["supportive"] += 1
             if emp is not None:
                 support_emp.append(emp)
@@ -314,7 +325,7 @@ def generate_final_report(
         if rank_val is not None:
             rank_vals.append(rank_val)
 
-        size_records.append((emp, rev_val, rank_val, stance))
+        size_records.append((emp, rev_val, rank_val, perc))
     lines = ["Final Report:"]
     for ind in sorted(industry_data):
         if industry_data[ind]["supportive"] > 0:
@@ -504,8 +515,8 @@ def generate_final_report(
     if justifications:
         biz_iter_all = is_business_flags if is_business_flags is not None else [None] * len(companies)
         examples = [
-            (c.organization_name, s, j)
-            for c, s, j, biz in zip(companies, stances, justifications, biz_iter_all)
+            (c.organization_name, p, j)
+            for c, p, j, biz in zip(companies, percentiles, justifications, biz_iter_all)
             if j and biz is not False and _is_business(c.organization_name)
         ]
         if examples:
@@ -681,6 +692,15 @@ async def _collect_company_data(
                 rank_str,
             ]
         )
+
+    # Replace raw stance scores with percentile ranks for the CSV output
+    ranks = percentile_ranks(stances)
+    for idx, r in enumerate(ranks):
+        table_rows[idx][6] = "" if r is None else f"{r:.2f}"
+        if r is None:
+            table_rows[idx][4] = "Unknown"
+        else:
+            table_rows[idx][4] = "Support" if r >= 0.5 else "Oppose"
 
     close_method = getattr(client, "aclose", None)
     if close_method is None:

@@ -105,18 +105,21 @@ The lookup script finishes by producing a **final report** summarizing stance
 coverage for each industry. Parsed summaries are validated so that the
 `supportive` stance score and `is_business` flag are always present, but the
 results should still be reviewed manually. The report includes basic statistics such as the
-number of supportive companies per industry, average stance values and a simple
+number of supportive companies per industry, average percentile scores and a simple
 ASCII bar chart. It also lists common categories found in the input data and
 provides a short summary of numeric value distributions. Support levels are
 broken down by IPO status, revenue range and CB rank, and the output includes a
 simple company size metric that combines employee counts with these fields. The
 report lists the top three most supportive companies for each AI sub-category.
-text report is written to ``final_report.txt`` alongside a
-CSV table of company summaries. When the optional ``scipy`` package is
-installed, statistical tests are included in the report. T-tests compare
-employee counts and the derived size metric between supportive and
-non-supportive companies, while chi-squared tests examine whether IPO status,
-revenue range or CB rank are associated with support levels.
+Stance scores in the report are expressed as percentile ranks so they always
+fall between 0 and 1. All metrics and statistical tests use these percentile
+values rather than the raw scores. The text report is written to
+``final_report.txt`` alongside a CSV table of company summaries. When the
+optional ``scipy`` package is installed, statistical tests are included in the
+report. T-tests compare employee counts and the derived size metric between
+supportive and non-supportive companies, while chi-squared tests examine
+whether IPO status, revenue range or CB rank are associated with support
+levels.
 The full text report is then submitted to the same language model and rewritten
 as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
@@ -134,8 +137,8 @@ Supportive companies by industry:
   Technology:  (0/1)
 
 Average stance per industry:
-  Manufacturing: 0.80
-  Technology: 0.40
+  Manufacturing: 0.50
+  Technology: 0.17
 Input data statistics:
 Most common industry: Manufacturing (1)
 Most common IPO status: Unknown (3)
@@ -160,7 +163,9 @@ Chi-squared test for CB rank: p=0.500
 
 The helper function ``percentile_ranks`` can be used to normalize stance values.
 It converts a list of numeric scores to percentile ranks between 0 and 1. Any
-``None`` or non-numeric values result in ``None`` in the returned list.
+``None`` or non-numeric values result in ``None`` in the returned list. The
+final report automatically applies this transformation so all stance statistics
+use percentile scores.
 
 ```python
 from spreadsheet_parser import percentile_ranks
