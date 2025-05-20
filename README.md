@@ -112,12 +112,14 @@ broken down by IPO status, revenue range and CB rank, and the output includes a
 simple company size metric that combines employee counts with these fields. The
 report lists the top three most supportive companies for each AI sub-category.
 Stance scores in the report are expressed as percentile ranks so they always
-fall between 0 and 1. The text report is written to ``final_report.txt`` alongside a
-CSV table of company summaries. When the optional ``scipy`` package is
-installed, statistical tests are included in the report. T-tests compare
-employee counts and the derived size metric between supportive and
-non-supportive companies, while chi-squared tests examine whether IPO status,
-revenue range or CB rank are associated with support levels.
+fall between 0 and 1. All metrics and statistical tests use these percentile
+values rather than the raw scores. The text report is written to
+``final_report.txt`` alongside a CSV table of company summaries. When the
+optional ``scipy`` package is installed, statistical tests are included in the
+report. T-tests compare employee counts and the derived size metric between
+supportive and non-supportive companies, while chi-squared tests examine
+whether IPO status, revenue range or CB rank are associated with support
+levels.
 The full text report is then submitted to the same language model and rewritten
 as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
