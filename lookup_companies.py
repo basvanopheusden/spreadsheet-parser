@@ -3,21 +3,20 @@ from argparse import ArgumentParser
 import asyncio
 import csv
 import os
-import re
 
-import openai
-import inspect
 from spreadsheet_parser.analysis import (
     generate_final_report,
     DEFAULT_MAX_LINES,
     DEFAULT_MAX_CONCURRENCY,
     _industry,
+    _collect_company_data,
 )
+from company_lookup import async_fetch_company_web_info
 from spreadsheet_parser.csv_reader import (
     read_companies_from_csv,
     read_companies_from_xlsx,
 )
-from company_lookup import async_fetch_company_web_info, parse_llm_response
+
 from spreadsheet_parser.quality import find_duplicate_names, rows_with_missing_fields
 
 __all__ = [
@@ -36,132 +35,15 @@ async def _run_async(
     *,
     model_name: str = "gpt-4o",
 ) -> None:
-    semaphore = asyncio.Semaphore(max_concurrency)
-    client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    stances: List[Optional[float]] = []
-    subcats: List[Optional[str]] = []
-    just_list: List[Optional[str]] = []
-    biz_list: List[Optional[bool]] = []
-    cached_count = 0
-    table_rows: List[List[str]] = []
-
-    async def fetch(company):
-        async with semaphore:
-            return await async_fetch_company_web_info(
-                company.organization_name,
-                model=model_name,
-                return_cache_info=True,
-                client=client,
-            )
-
-    tasks = [asyncio.create_task(fetch(c)) for c in companies]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    for company, result in zip(companies, results):
-        if isinstance(result, Exception):
-            stances.append(None)
-            subcats.append(None)
-            just_list.append(None)
-            biz_list.append(None)
-            table_rows.append(
-                [
-                    company.organization_name,
-                    _industry(company),
-                    "",
-                    "",
-                    "Unknown",
-                    "",
-                    "",
-                ]
-            )
-            continue
-        elif result:
-            content, cached = result
-            if cached:
-                cached_count += 1
-            if content:
-                print(content)
-                parsed = parse_llm_response(content)
-                if parsed is None:
-                    stance_val = None
-                    justification = None
-                    subcat = None
-                    parsed_summary = None
-                    is_biz = None
-                else:
-                    stance_val = parsed.get("supportive")
-                    justification = parsed.get("justification")
-                    subcat = parsed.get("sub_category")
-                    parsed_summary = (
-                        parsed.get("business_model_summary")
-                        or parsed.get("business_model")
-                        or parsed.get("summary")
-                    )
-                    is_biz = parsed.get("is_business")
-
-                stances.append(stance_val)
-                subcats.append(subcat)
-                just_list.append(justification)
-                biz_list.append(is_biz)
-
-                summary_text = re.split(
-                    r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
-                )[0].strip()
-                if not summary_text:
-                    summary_text = parsed_summary or ""
-
-                if stance_val is None:
-                    stance_label = "Unknown"
-                    rank_str = ""
-                else:
-                    stance_label = "Support" if stance_val >= 0.5 else "Oppose"
-                    rank_str = f"{stance_val:.2f}"
-
-                table_rows.append(
-                    [
-                        company.organization_name,
-                        _industry(company),
-                        subcat or "",
-                        summary_text,
-                        stance_label,
-                        justification or summary_text,
-                        rank_str,
-                    ]
-                )
-            else:
-                stances.append(None)
-                subcats.append(None)
-                just_list.append(None)
-                biz_list.append(None)
-                table_rows.append(
-                    [
-                        company.organization_name,
-                        _industry(company),
-                        "",
-                        "",
-                        "Unknown",
-                        "",
-                        "",
-                    ]
-                )
-
-        else:
-            stances.append(None)
-            subcats.append(None)
-            just_list.append(None)
-            biz_list.append(None)
-            table_rows.append(
-                [
-                    company.organization_name,
-                    _industry(company),
-                    "",
-                    "",
-                    "Unknown",
-                    "",
-                    "",
-                ]
-            )
+    (
+        stances,
+        subcats,
+        just_list,
+        biz_list,
+        table_rows,
+        cached_count,
+    ) = await _collect_company_data(companies, max_concurrency, model_name)
 
     report = generate_final_report(
         companies,
@@ -195,17 +77,6 @@ async def _run_async(
     report_path.write_text(report, encoding="utf-8")
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
-
-    close_method = getattr(client, "aclose", None)
-    if close_method is None:
-        close_method = getattr(client, "close", None)
-    if close_method:
-        try:
-            result = close_method()
-            if inspect.isawaitable(result):
-                await result
-        except Exception:
-            pass
 
 # Expose the async runner for tests
 run_async = _run_async

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .llm import (
-    async_fetch_company_web_info,
     parse_llm_response,
     async_report_to_abstract,
 )
@@ -551,20 +550,31 @@ def generate_final_report(
     return "\n".join(lines)
 
 
-async def run_async(
+async def _make_client():
+    """Return an OpenAI client compatible with old and new libraries."""
+    if hasattr(openai, "AsyncOpenAI"):
+        return openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+async def _collect_company_data(
     companies,
     max_concurrency: int,
-    output_dir: Path,
-    *,
-    model_name: str = "gpt-4o",
-) -> None:
+    model_name: str,
+) -> tuple[
+    List[Optional[float]],
+    List[Optional[str]],
+    List[Optional[str]],
+    List[Optional[bool]],
+    List[List[str]],
+    int,
+]:
+    """Fetch and parse web info for each company."""
+
     from lookup_companies import async_fetch_company_web_info
 
     semaphore = asyncio.Semaphore(max_concurrency)
-    if hasattr(openai, "AsyncOpenAI"):
-        client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    else:
-        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = await _make_client()
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
@@ -586,22 +596,13 @@ async def run_async(
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     for company, result in zip(companies, results):
+        stance_val: Optional[float] = None
+        subcat: Optional[str] = None
+        justification: Optional[str] = None
+        is_biz: Optional[bool] = None
+        summary_text = ""
         if isinstance(result, Exception):
-            stances.append(None)
-            subcats.append(None)
-            just_list.append(None)
-            table_rows.append(
-                [
-                    company.organization_name,
-                    _industry(company),
-                    "",
-                    "",
-                    "Unknown",
-                    "",
-                    "",
-                ]
-            )
-            continue
+            pass
         elif result:
             content, cached = result
             if cached:
@@ -609,13 +610,7 @@ async def run_async(
             if content:
                 print(content)
                 parsed = parse_llm_response(content)
-                if parsed is None:
-                    stance_val = None
-                    justification = None
-                    subcat = None
-                    parsed_summary = None
-                    is_biz = None
-                else:
+                if parsed is not None:
                     stance_val = parsed.get("supportive")
                     justification = parsed.get("justification")
                     subcat = parsed.get("sub_category")
@@ -625,69 +620,69 @@ async def run_async(
                         or parsed.get("summary")
                     )
                     is_biz = parsed.get("is_business")
-
-                stances.append(stance_val)
-                subcats.append(subcat)
-                just_list.append(justification)
-                biz_list.append(is_biz)
+                else:
+                    parsed_summary = None
 
                 summary_text = re.split(
                     r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
                 )[0].strip()
                 if not summary_text:
                     summary_text = parsed_summary or ""
-
-                if stance_val is None:
-                    stance_label = "Unknown"
-                    rank_str = ""
-                else:
-                    stance_label = "Support" if stance_val >= 0.5 else "Oppose"
-                    rank_str = f"{stance_val:.2f}"
-
-                table_rows.append(
-                    [
-                        company.organization_name,
-                        _industry(company),
-                        subcat or "",
-                        summary_text,
-                        stance_label,
-                        justification or summary_text,
-                        rank_str,
-                    ]
-                )
-            else:
-                stances.append(None)
-                subcats.append(None)
-                just_list.append(None)
-                biz_list.append(None)
-                table_rows.append(
-                    [
-                        company.organization_name,
-                        _industry(company),
-                        "",
-                        "",
-                        "Unknown",
-                        "",
-                        "",
-                    ]
-                )
-
+        stance_label: str
+        rank_str: str
+        if stance_val is None:
+            stance_label = "Unknown"
+            rank_str = ""
         else:
-            stances.append(None)
-            subcats.append(None)
-            just_list.append(None)
-            biz_list.append(None)
-            table_rows.append(
-                [
-                    company.organization_name,
-                    _industry(company),
-                    "",
-                    "",
-                    "Unknown",
-                    "",
-                    "",
-                ]
-            )
+            stance_label = "Support" if stance_val >= 0.5 else "Oppose"
+            rank_str = f"{stance_val:.2f}"
+
+        stances.append(stance_val)
+        subcats.append(subcat)
+        just_list.append(justification)
+        biz_list.append(is_biz)
+        table_rows.append(
+            [
+                company.organization_name,
+                _industry(company),
+                subcat or "",
+                summary_text,
+                stance_label,
+                justification or summary_text,
+                rank_str,
+            ]
+        )
+
+    close_method = getattr(client, "aclose", None)
+    if close_method is None:
+        close_method = getattr(client, "close", None)
+    if close_method:
+        try:
+            result = close_method()
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            pass
+
+    return stances, subcats, just_list, biz_list, table_rows, cached_count
+
+
+async def run_async(
+    companies,
+    max_concurrency: int,
+    output_dir: Path,
+    *,
+    model_name: str = "gpt-4o",
+) -> None:
+
+    (
+        stances,
+        subcats,
+        just_list,
+        biz_list,
+        table_rows,
+        cached_count,
+    ) = await _collect_company_data(companies, max_concurrency, model_name)
 
     report = generate_final_report(
         companies,
@@ -725,15 +720,4 @@ async def run_async(
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
     print(f"Abstract saved to {abstract_path}")
-
-    close_method = getattr(client, "aclose", None)
-    if close_method is None:
-        close_method = getattr(client, "close", None)
-    if close_method:
-        try:
-            result = close_method()
-            if inspect.isawaitable(result):
-                await result
-        except Exception:
-            pass
 
