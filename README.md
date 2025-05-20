@@ -54,7 +54,11 @@ model is specified, it defaults to ``gpt-4o``.
 You may provide just the company name or pass a `Company` object returned from
 `read_companies_from_csv`. When a dataclass is supplied, all details from the CSV
 are included in the prompt sent to the LLM so that it can give a more informed
-summary.
+summary. Responses are parsed with `parse_llm_response`, which now checks that
+the JSON payload contains `supportive` and `is_business` keys. If either key is
+missing the function returns `None` (or raises when called with
+`raise_on_missing=True`). In all cases the automated results should be reviewed
+manually.
 ## Lookup Script
 
 For convenience, the repository provides a small CLI script, `lookup_companies.py`,
@@ -76,7 +80,9 @@ the text report (`final_report.txt`) should be saved.
 ## Report Generation
 
 The lookup script finishes by producing a **final report** summarizing stance
-coverage for each industry. The report now includes basic statistics such as the
+coverage for each industry. Parsed summaries are validated so that the
+`supportive` stance score and `is_business` flag are always present, but the
+results should still be reviewed manually. The report includes basic statistics such as the
 number of supportive companies per industry, average stance values and a simple
 ASCII bar chart. It also lists common categories found in the input data and
 provides a short summary of numeric value distributions. Support levels are

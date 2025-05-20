@@ -1,32 +1,26 @@
 from pathlib import Path
 from argparse import ArgumentParser
 import asyncio
-import csv
 import re
 
-from spreadsheet_parser import (
-    async_fetch_company_web_info,
+from spreadsheet_parser.analysis import (
     run_async,
     generate_final_report,
     DEFAULT_MAX_LINES,
     DEFAULT_MAX_CONCURRENCY,
     _industry,
-    parse_llm_response,
 )
 from spreadsheet_parser.csv_reader import read_companies_from_csv
 from spreadsheet_parser.quality import find_duplicate_names, rows_with_missing_fields
 
 __all__ = [
     "run_async",
-    "_run_async",
     "generate_final_report",
     "DEFAULT_MAX_LINES",
-    "async_fetch_company_web_info",
     "DEFAULT_MAX_CONCURRENCY",
     "_industry",
     "main",
 ]
-
 
 async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     semaphore = asyncio.Semaphore(max_concurrency)
@@ -184,7 +178,6 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
     report_path.write_text(report, encoding="utf-8")
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
-
 
 def main() -> None:
     parser = ArgumentParser(
