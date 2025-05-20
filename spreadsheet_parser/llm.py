@@ -81,7 +81,8 @@ async def _fetch_with_cache(
         "serves the company's interests. "
         "Return ONLY a JSON code block containing the sanitized fields along "
         "with a 'sub_category' string, numeric 'supportive' value, a boolean "
-        "'is_business', and a brief 'justification' for the rating."
+        "'is_business', a short 'business_model_summary', and a brief "
+        "'justification' for the rating."
     )
 
     cache_dir = Path.home() / "llm_cache"

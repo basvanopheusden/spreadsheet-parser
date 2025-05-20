@@ -83,12 +83,13 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIn("sub_category", user_content)
         self.assertIn("justification", user_content)
         self.assertIn("is_business", user_content)
+        self.assertIn("business_model_summary", user_content)
 
     def test_parse_llm_response(self):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI", "is_business": true}'
+            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI", "is_business": true, "business_model_summary": "Acme summary"}'
             "\n```"
         )
         result = parse_llm_response(text)
@@ -98,6 +99,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertEqual(result.get("organization_name"), "Acme")
         self.assertEqual(result.get("sub_category"), "Generative AI")
         self.assertTrue(result.get("is_business"))
+        self.assertEqual(result.get("business_model_summary"), "Acme summary")
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
