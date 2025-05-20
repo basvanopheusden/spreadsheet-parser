@@ -18,7 +18,9 @@ from lookup_companies import _industry
 
 
 class TestIndustryHelper(unittest.TestCase):
-    def make_company(self, industries: str):
+    def make_company(self, industries: str | list[str]):
+        if isinstance(industries, str):
+            industries = [industries]
         return Company(
             organization_name="TestCo",
             organization_name_url=None,

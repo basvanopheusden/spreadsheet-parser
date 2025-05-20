@@ -121,13 +121,16 @@ def _cb_rank_category(text: Optional[str]) -> str:
     return "5k+"
 
 
-def _industry(company: Company) -> str:
-    """Return a sanitized industry string for the company."""
+def _industry_list(company: Company) -> List[str]:
+    """Return a list of sanitized industries for the company."""
 
     if not company.industries:
-        return "Unknown"
+        return ["Unknown"]
 
-    parts = re.split(r"[;,]", company.industries)
+    if isinstance(company.industries, str):
+        parts = re.split(r"[;,]", company.industries)
+    else:
+        parts = company.industries
 
     noise_patterns = [
         r"please visit.*",
@@ -148,8 +151,9 @@ def _industry(company: Company) -> str:
         "california",
     }
 
+    results = []
     for raw in parts:
-        part = raw.strip()
+        part = str(raw).strip()
         # Remove URLs and other obvious web references
         part = re.sub(r"https?://\S+|www\.[^\s]+", "", part).strip()
         part = re.sub(r":+$", "", part).strip()
@@ -175,9 +179,15 @@ def _industry(company: Company) -> str:
         ):
             continue
 
-        return _INDUSTRY_ALIASES.get(part.lower(), part)
+        results.append(_INDUSTRY_ALIASES.get(part.lower(), part))
 
-    return "Unknown"
+    return results or ["Unknown"]
+
+
+def _industry(company: Company) -> str:
+    """Return the first sanitized industry string for the company."""
+
+    return _industry_list(company)[0]
 
 
 from .csv_reader import _is_business
@@ -263,6 +273,8 @@ def generate_final_report(
     nonsupport_emp: List[float] = []
 
     percentiles = percentile_ranks(stances)
+    total_companies = 0
+    total_support = 0
     # Use percentile ranks for all downstream calculations
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
     biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
@@ -275,11 +287,17 @@ def generate_final_report(
     ):
         if is_biz is False or not _is_business(company.organization_name):
             continue
-        ind = _industry(company)
-        info = industry_data[ind]
-        info["total"] += 1
-        if perc is not None:
-            info["stances"].append(perc)
+        total_companies += 1
+        if perc is not None and perc >= 0.5:
+            total_support += 1
+
+        for ind in _industry_list(company):
+            info = industry_data[ind]
+            info["total"] += 1
+            if perc is not None:
+                info["stances"].append(perc)
+                if perc >= 0.5:
+                    info["supportive"] += 1
 
         sc = subcat or "Uncategorized"
         sc_info = subcat_data[sc]
@@ -309,7 +327,6 @@ def generate_final_report(
 
         emp = _employee_count(company)
         if perc is not None and perc >= 0.5:
-            info["supportive"] += 1
             if emp is not None:
                 support_emp.append(emp)
         else:
@@ -333,8 +350,6 @@ def generate_final_report(
         else:
             lines.append(f"- {ind}: no supportive company found")
 
-    total_support = sum(d["supportive"] for d in industry_data.values())
-    total_companies = sum(d["total"] for d in industry_data.values())
     lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
 
     lines.append("\nSupportive companies by industry:")
@@ -496,7 +511,7 @@ def generate_final_report(
             elif ttest_ind:
                 lines.append("Not enough data for t-test of size metric.")
 
-    industries_all = [_industry(c) for c in companies]
+    industries_all = [ind for c in companies for ind in _industry_list(c)]
     ipo_statuses = [c.ipo_status or "Unknown" for c in companies]
     emp_values = [e for c in companies if (e := _employee_count(c)) is not None]
 

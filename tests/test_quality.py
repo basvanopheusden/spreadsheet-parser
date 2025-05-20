@@ -16,7 +16,7 @@ class TestQualityChecks(unittest.TestCase):
             company_type=None,
             number_of_employees=None,
             full_description=None,
-            industries="Tech",
+            industries=["Tech"],
             headquarters_location=None,
             description=None,
             cb_rank=None,

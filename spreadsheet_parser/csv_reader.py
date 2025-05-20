@@ -1,7 +1,7 @@
 import csv
 import re
 from pathlib import Path
-from typing import Dict, Iterable, List, Union
+from typing import Dict, Iterable, List, Union, Optional
 
 from .models import Company, CANONICAL_HEADERS
 
@@ -73,6 +73,15 @@ def _fix_employee_range(text: str) -> str:
     return text
 
 
+def _parse_industries(value: Optional[str]) -> Optional[list[str]]:
+    """Split the raw ``Industries`` string into a list of values."""
+
+    if value is None:
+        return None
+    parts = [p.strip() for p in re.split(r"[;,]", value) if p.strip()]
+    return parts or None
+
+
 def _is_business(name: str) -> bool:
     """Return True if the name appears to describe a business."""
     text = name.lower()
@@ -120,6 +129,8 @@ def read_companies_from_csv(path: Union[str, Path]) -> List[Company]:
                     kwargs[attr] = value or ""
                 elif attr == "number_of_employees" and value is not None:
                     kwargs[attr] = _fix_employee_range(value) if value != "" else None
+                elif attr == "industries" and value is not None:
+                    kwargs[attr] = _parse_industries(value)
                 else:
                     kwargs[attr] = value if value != "" else None
 
@@ -168,6 +179,8 @@ def read_companies_from_xlsx(path: Union[str, Path]) -> List[Company]:
                 value = value.strip()
             if attr == "organization_name":
                 kwargs[attr] = value or ""
+            elif attr == "industries" and value not in (None, ""):
+                kwargs[attr] = _parse_industries(str(value))
             else:
                 kwargs[attr] = value if value not in (None, "") else None
 
