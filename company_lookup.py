@@ -1,15 +1,14 @@
-import os
-import hashlib
-import asyncio
-import inspect
-from dataclasses import asdict
-from pathlib import Path
-from typing import Optional, Union, Tuple
-import json
-import re
 import ast
-
+import asyncio
+import hashlib
+import inspect
+import json
+import os
+import re
+from dataclasses import asdict
 from parser import Company
+from pathlib import Path
+from typing import Optional, Tuple, Union
 
 import openai
 
@@ -223,7 +222,9 @@ def parse_llm_response(response: str) -> Optional[dict]:
     if not response:
         return None
 
-    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.IGNORECASE | re.DOTALL)
+    match = re.search(
+        r"```(?:json)?\s*(\{.*?\})\s*```", response, re.IGNORECASE | re.DOTALL
+    )
     if not match:
         return None
 
@@ -248,4 +249,3 @@ def parse_llm_response(response: str) -> Optional[dict]:
         data["sub_category"] = None
 
     return data
-
