@@ -484,7 +484,8 @@ class TestRunAsync(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+                asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
             csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
             abstract_path = pathlib.Path(tmpdir) / "abstract.txt"
             with csv_path.open(newline="") as f:
