@@ -124,6 +124,9 @@ The full text report is then submitted to the same language model and rewritten
 as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
 
+If the optional ``matplotlib`` package is installed, a ``support_by_industry.png``
+image is also created showing a bar chart of supportive companies per industry.
+
 Example snippet:
 
 ```text

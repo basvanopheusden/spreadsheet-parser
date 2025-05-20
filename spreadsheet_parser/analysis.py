@@ -228,6 +228,8 @@ def generate_final_report(
     subcategories: Optional[List[Optional[str]]] = None,
     justifications: Optional[List[Optional[str]]] = None,
     is_business_flags: Optional[List[Optional[bool]]] = None,
+    *,
+    plot_path: Optional[Path] = None,
 ) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
@@ -242,6 +244,9 @@ def generate_final_report(
     ``is_business_flags`` allows callers to specify whether each row represents
     a for-profit business. Any entries marked as ``False`` are ignored, as are
     company names that fail the internal ``_is_business`` heuristic.
+    ``plot_path`` optionally specifies where a bar chart of supportive counts by
+    industry should be saved. If ``matplotlib`` is unavailable the graph is
+    skipped.
     """
 
     from collections import Counter, defaultdict
@@ -602,6 +607,30 @@ def generate_final_report(
         )
     lines.append(" ".join(paragraph_parts))
 
+    if plot_path is not None:
+        try:
+            import matplotlib.pyplot as plt  # type: ignore
+        except Exception:  # pragma: no cover - matplotlib optional
+            pass
+        else:
+            inds = sorted(industry_data)
+            supp = [industry_data[i]["supportive"] for i in inds]
+            totals = [industry_data[i]["total"] for i in inds]
+            x = range(len(inds))
+            fig, ax = plt.subplots()
+            ax.bar(x, totals, label="Total", color="lightgray")
+            ax.bar(x, supp, label="Supportive", color="tab:blue")
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(inds, rotation=45, ha="right")
+            ax.set_xlabel("Industry")
+            ax.set_ylabel("Count")
+            ax.legend()
+            plt.tight_layout()
+            p = Path(plot_path)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(p)
+            plt.close(fig)
+
     return "\n".join(lines)
 
 
@@ -768,6 +797,7 @@ async def run_async(
         subcats,
         just_list,
         biz_list,
+        plot_path=output_dir / "support_by_industry.png",
     )
     print(report)
     print(f"Cached responses used: {cached_count}")

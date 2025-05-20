@@ -54,6 +54,7 @@ async def _run_async(
         subcats,
         just_list,
         biz_list,
+        plot_path=output_dir / "support_by_industry.png",
     )
     print(report)
     print(f"Cached responses used: {cached_count}")
