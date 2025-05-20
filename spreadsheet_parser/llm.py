@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import asyncio
 import hashlib
@@ -202,10 +204,16 @@ async def async_fetch_company_web_info(
         )
     finally:
         if needs_close:
-            try:
-                await client.aclose()
-            except Exception:
-                pass
+            close_method = getattr(client, "aclose", None)
+            if close_method is None:
+                close_method = getattr(client, "close", None)
+            if close_method:
+                try:
+                    result = close_method()
+                    if inspect.isawaitable(result):
+                        await result
+                except Exception:
+                    pass
 
 
 def _parse_support_value(value: object) -> Optional[float]:

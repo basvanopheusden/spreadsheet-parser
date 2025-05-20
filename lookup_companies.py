@@ -6,6 +6,7 @@ import os
 import re
 
 import openai
+import inspect
 from spreadsheet_parser.analysis import (
     generate_final_report,
     DEFAULT_MAX_LINES,
@@ -194,7 +195,16 @@ async def _run_async(
     print(f"Output table saved to {table_path}")
     print(f"Report saved to {report_path}")
 
-    await client.aclose()
+    close_method = getattr(client, "aclose", None)
+    if close_method is None:
+        close_method = getattr(client, "close", None)
+    if close_method:
+        try:
+            result = close_method()
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            pass
 
 # Expose the async runner for tests
 run_async = _run_async

@@ -3,6 +3,7 @@ import csv
 import os
 import re
 import openai
+import inspect
 from .models import Company
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -560,7 +561,10 @@ async def run_async(
     from lookup_companies import async_fetch_company_web_info
 
     semaphore = asyncio.Semaphore(max_concurrency)
-    client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if hasattr(openai, "AsyncOpenAI"):
+        client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    else:
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
@@ -722,5 +726,14 @@ async def run_async(
     print(f"Report saved to {report_path}")
     print(f"Abstract saved to {abstract_path}")
 
-    await client.aclose()
+    close_method = getattr(client, "aclose", None)
+    if close_method is None:
+        close_method = getattr(client, "close", None)
+    if close_method:
+        try:
+            result = close_method()
+            if inspect.isawaitable(result):
+                await result
+        except Exception:
+            pass
 
