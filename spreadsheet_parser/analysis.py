@@ -823,7 +823,7 @@ async def run_async(
         just_list,
         biz_list,
         plot_path=output_dir / "support_by_subcat.png",
-\    )
+    )
     print(report)
     print(f"Cached responses used: {cached_count}")
 
