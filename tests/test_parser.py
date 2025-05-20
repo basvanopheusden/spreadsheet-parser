@@ -27,7 +27,9 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
         path = pathlib.Path(__file__).parent / "data" / "companies_header_variation.csv"
         companies = read_companies_from_csv(path)
         self.assertEqual(len(companies), 3)
-        self.assertEqual(companies[2].organization_name_url, "https://initech.example.com")
+        self.assertEqual(
+            companies[2].organization_name_url, "https://initech.example.com"
+        )
 
     def test_missing_columns(self):
         path = pathlib.Path(__file__).parent / "data" / "companies_missing_columns.csv"
@@ -36,7 +38,11 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
         self.assertIsNone(companies[0].full_description)
 
     def test_extra_column_ignored(self):
-        path = pathlib.Path(__file__).parent / "data" / "companies_malformed_extra_column.csv"
+        path = (
+            pathlib.Path(__file__).parent
+            / "data"
+            / "companies_malformed_extra_column.csv"
+        )
         companies = read_companies_from_csv(path)
         self.assertEqual(len(companies), 2)
         self.assertEqual(companies[0].organization_name, "Acme Corp")
@@ -48,7 +54,9 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
         self.assertTrue(companies[0].organization_name.startswith("Broken Co"))
 
     def test_misencoded_text(self):
-        path = pathlib.Path(__file__).parent / "data" / "companies_malformed_encoding.csv"
+        path = (
+            pathlib.Path(__file__).parent / "data" / "companies_malformed_encoding.csv"
+        )
         companies = read_companies_from_csv(path)
         self.assertEqual(len(companies), 1)
         self.assertIn("√", companies[0].organization_name)
@@ -56,4 +64,3 @@ class TestReadCompaniesFromCSV(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """CLI tool for fetching company info using the OpenAI-based lookup helper."""
 
-from argparse import ArgumentParser
-from pathlib import Path
 import asyncio
 import csv
+import re
+from argparse import ArgumentParser
+from parser import Company, read_companies_from_csv
+from pathlib import Path
 from typing import List, Optional
 
-from parser import read_companies_from_csv, Company
 from company_lookup import async_fetch_company_web_info, parse_llm_response
-import re
-
 
 DEFAULT_MAX_LINES = 5
 DEFAULT_MAX_CONCURRENCY = 5
@@ -160,6 +159,7 @@ def _industry(company: Company) -> str:
 
     return "Unknown"
 
+
 def generate_final_report(
     companies: List[Company],
     stances: List[Optional[float]],
@@ -171,11 +171,11 @@ def generate_final_report(
     numbers indicate stronger support for interoperability legislation.
     """
 
-    from collections import defaultdict, Counter
+    from collections import Counter, defaultdict
     from statistics import mean, median
 
     try:
-        from scipy.stats import ttest_ind, chi2_contingency
+        from scipy.stats import chi2_contingency, ttest_ind
     except Exception:  # pragma: no cover - scipy optional
         ttest_ind = None
         chi2_contingency = None
@@ -286,9 +286,13 @@ def generate_final_report(
         avg_support_size = mean(support_emp)
         avg_total_size = mean(support_emp + nonsupport_emp)
         if avg_support_size < avg_total_size:
-            lines.append("Supportive companies tend to be smaller based on employee counts.")
+            lines.append(
+                "Supportive companies tend to be smaller based on employee counts."
+            )
         else:
-            lines.append("Supportive companies do not appear smaller based on employee counts.")
+            lines.append(
+                "Supportive companies do not appear smaller based on employee counts."
+            )
 
         if ttest_ind and len(support_emp) >= 2 and len(nonsupport_emp) >= 2:
             tstat, pval = ttest_ind(support_emp, nonsupport_emp, equal_var=False)
@@ -305,7 +309,10 @@ def generate_final_report(
     if chi2_contingency and len(ipo_data) > 1:
         table = [
             [ipo_data[c]["supportive"] for c in sorted(ipo_data)],
-            [ipo_data[c]["total"] - ipo_data[c]["supportive"] for c in sorted(ipo_data)],
+            [
+                ipo_data[c]["total"] - ipo_data[c]["supportive"]
+                for c in sorted(ipo_data)
+            ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
         lines.append(f"Chi-squared test for IPO status: p={p:.3f}")
@@ -319,14 +326,15 @@ def generate_final_report(
     if chi2_contingency and len(revenue_data) > 1:
         table = [
             [revenue_data[c]["supportive"] for c in sorted(revenue_data)],
-            [revenue_data[c]["total"] - revenue_data[c]["supportive"] for c in sorted(revenue_data)],
+            [
+                revenue_data[c]["total"] - revenue_data[c]["supportive"]
+                for c in sorted(revenue_data)
+            ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
         lines.append(f"Chi-squared test for revenue range: p={p:.3f}")
     elif chi2_contingency:
-        lines.append(
-            "Not enough categories for chi-squared test of revenue range."
-        )
+        lines.append("Not enough categories for chi-squared test of revenue range.")
 
     lines.append("\nSupport by CB rank:")
     for cat in sorted(rank_data):
@@ -335,7 +343,10 @@ def generate_final_report(
     if chi2_contingency and len(rank_data) > 1:
         table = [
             [rank_data[c]["supportive"] for c in sorted(rank_data)],
-            [rank_data[c]["total"] - rank_data[c]["supportive"] for c in sorted(rank_data)],
+            [
+                rank_data[c]["total"] - rank_data[c]["supportive"]
+                for c in sorted(rank_data)
+            ],
         ]
         chi2, p, _, _ = chi2_contingency(table)
         lines.append(f"Chi-squared test for CB rank: p={p:.3f}")
@@ -347,7 +358,9 @@ def generate_final_report(
         size_vals_non = []
         emp_min, emp_max = (min(emp_vals), max(emp_vals)) if emp_vals else (None, None)
         rev_min, rev_max = (min(rev_vals), max(rev_vals)) if rev_vals else (None, None)
-        rank_min, rank_max = (min(rank_vals), max(rank_vals)) if rank_vals else (None, None)
+        rank_min, rank_max = (
+            (min(rank_vals), max(rank_vals)) if rank_vals else (None, None)
+        )
 
         def norm(val, lo, hi):
             if val is None or lo is None or hi is None or hi == lo:
@@ -378,16 +391,18 @@ def generate_final_report(
             if size_vals_non:
                 lines.append(f"  Non-supportive: {mean(size_vals_non):.2f}")
             if ttest_ind and len(size_vals_support) >= 2 and len(size_vals_non) >= 2:
-                tstat, pval = ttest_ind(size_vals_support, size_vals_non, equal_var=False)
-                lines.append(f"T-test comparing size metric: t={tstat:.2f}, p={pval:.3f}")
+                tstat, pval = ttest_ind(
+                    size_vals_support, size_vals_non, equal_var=False
+                )
+                lines.append(
+                    f"T-test comparing size metric: t={tstat:.2f}, p={pval:.3f}"
+                )
             elif ttest_ind:
                 lines.append("Not enough data for t-test of size metric.")
 
     industries_all = [_industry(c) for c in companies]
     ipo_statuses = [c.ipo_status or "Unknown" for c in companies]
-    emp_values = [
-        e for c in companies if (e := _employee_count(c)) is not None
-    ]
+    emp_values = [e for c in companies if (e := _employee_count(c)) is not None]
 
     lines.append("\nInput data statistics:")
     if industries_all:
@@ -405,10 +420,16 @@ def generate_final_report(
 
 
 def main() -> None:
-    parser = ArgumentParser(description="Fetch web summaries for companies listed in a CSV file")
+    parser = ArgumentParser(
+        description="Fetch web summaries for companies listed in a CSV file"
+    )
     parser.add_argument("csv", type=Path, help="CSV file containing company data")
-    parser.add_argument("--max-lines", type=int, default=DEFAULT_MAX_LINES,
-                        help=f"Number of lines to process (default: {DEFAULT_MAX_LINES})")
+    parser.add_argument(
+        "--max-lines",
+        type=int,
+        default=DEFAULT_MAX_LINES,
+        help=f"Number of lines to process (default: {DEFAULT_MAX_LINES})",
+    )
     parser.add_argument(
         "--max-concurrency",
         type=int,
@@ -459,14 +480,16 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         if isinstance(result, Exception):
             stances.append(None)
             subcats.append(None)
-            table_rows.append([
-                company.organization_name,
-                _industry(company),
-                "",
-                "Unknown",
-                "",
-                "",
-            ])
+            table_rows.append(
+                [
+                    company.organization_name,
+                    _industry(company),
+                    "",
+                    "Unknown",
+                    "",
+                    "",
+                ]
+            )
             continue
         elif result:
             content, cached = result
@@ -485,26 +508,46 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     subcat = parsed.get("sub_category")
                 stances.append(stance_val)
                 subcats.append(subcat)
-                summary_text = re.split(r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL)[0].strip()
+                summary_text = re.split(
+                    r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
+                )[0].strip()
                 if stance_val is None:
                     stance_label = "Unknown"
                     rank_str = ""
                 else:
                     stance_label = "Support" if stance_val >= 0.5 else "Oppose"
                     rank_str = f"{stance_val:.2f}"
-                table_rows.append([
-                    company.organization_name,
-                    _industry(company),
-                    subcat or "",
-                    summary_text,
-                    stance_label,
-                    justification or summary_text,
-                    rank_str,
-                ])
+                table_rows.append(
+                    [
+                        company.organization_name,
+                        _industry(company),
+                        subcat or "",
+                        summary_text,
+                        stance_label,
+                        justification or summary_text,
+                        rank_str,
+                    ]
+                )
             else:
                 stances.append(None)
                 subcats.append(None)
-                table_rows.append([
+                table_rows.append(
+                    [
+                        company.organization_name,
+                        _industry(company),
+                        "",
+                        "",
+                        "Unknown",
+                        "",
+                        "",
+                    ]
+                )
+
+        else:
+            stances.append(None)
+            subcats.append(None)
+            table_rows.append(
+                [
                     company.organization_name,
                     _industry(company),
                     "",
@@ -512,20 +555,8 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                     "Unknown",
                     "",
                     "",
-                ])
-
-        else:
-            stances.append(None)
-            subcats.append(None)
-            table_rows.append([
-                company.organization_name,
-                _industry(company),
-                "",
-                "",
-                "Unknown",
-                "",
-                "",
-            ])
+                ]
+            )
 
     report = generate_final_report(companies, stances, subcats)
     print(report)
