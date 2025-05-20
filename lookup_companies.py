@@ -31,6 +31,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
 
     stances: List[Optional[float]] = []
     subcats: List[Optional[str]] = []
+    just_list: List[Optional[str]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
 
@@ -48,6 +49,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         if isinstance(result, Exception):
             stances.append(None)
             subcats.append(None)
+            just_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
@@ -84,6 +86,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
 
                 stances.append(stance_val)
                 subcats.append(subcat)
+                just_list.append(justification)
 
                 summary_text = re.split(
                     r"```(?:json)?\s*\{.*?\}\s*```", content, flags=re.DOTALL
@@ -112,6 +115,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
             else:
                 stances.append(None)
                 subcats.append(None)
+                just_list.append(None)
                 table_rows.append(
                     [
                         company.organization_name,
@@ -127,6 +131,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
         else:
             stances.append(None)
             subcats.append(None)
+            just_list.append(None)
             table_rows.append(
                 [
                     company.organization_name,
@@ -139,7 +144,7 @@ async def _run_async(companies, max_concurrency: int, output_dir: Path) -> None:
                 ]
             )
 
-    report = generate_final_report(companies, stances, subcats)
+    report = generate_final_report(companies, stances, subcats, just_list)
     print(report)
     print(f"Cached responses used: {cached_count}")
 
