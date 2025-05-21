@@ -408,7 +408,7 @@ def generate_final_report(
         else:
             lines.append(f"  {ind}: n/a")
 
-    lines.append("\nSupport by AI sub-category:")
+    lines.append("\nSupport by sub-category:")
     for cat in sorted(subcat_data):
         d = subcat_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
@@ -1009,7 +1009,7 @@ async def run_async(
             [
                 "Company Name",
                 "Industry",
-                "AI Sub-Category",
+                "Sub-Category",
                 "Business Model Summary",
                 "Likely Stance on Interoperability",
                 "Qualitative Justification",

@@ -30,22 +30,36 @@ _RATE_DELAY = 0.5  # start slightly below 1 req/sec
 _MAX_DELAY = 60.0
 
 
-_AI_SUBCATEGORIES = [
-    "Generative AI",
-    "Machine Learning",
-    "Natural Language Processing",
-    "Computer Vision",
-    "Robotics",
-    "AI Infrastructure",
-    "AI Hardware",
-    "Big Data & Analytics",
-    "Security AI",
-    "Finance AI",
-    "Health/Bio AI",
-    "Education AI",
-    "Marketing AI",
-    "Other AI",
-    "Non-AI",
+# List of high level industry sub-categories used when prompting the model.
+# These terms are intentionally broader than just "AI" so the taxonomy can be
+# reused for a variety of businesses.
+_SUBCATEGORIES = [
+    "Accounting",
+    "Advice",
+    "Asset Management",
+    "Auto Insurance",
+    "Banking",
+    "Consulting",
+    "FinTech",
+    "Finance",
+    "Financial Services",
+    "Health Care",
+    "Health Insurance",
+    "Information Technology",
+    "Insurance",
+    "Leasing",
+    "Lending",
+    "Life Insurance",
+    "Payments",
+    "Professional Services",
+    "Property Management",
+    "Real Estate",
+    "Real Estate Investment",
+    "Risk Management",
+    "Software",
+    "Venture Capital",
+    "Wealth Management",
+    "Other",
 ]
 
 
@@ -117,14 +131,14 @@ async def _fetch_with_cache(
             "Correct any malformed values and respond with the cleaned data.\n"
             "```json\n" + csv_json + "\n```\n"
         )
-    taxonomy_list = "; ".join(_AI_SUBCATEGORIES)
+    taxonomy_list = "; ".join(_SUBCATEGORIES)
     prompt += (
         "Then summarize the company's business model and data strategy and "
         "rate their likely support for interoperability legislation on a scale "
         "from 0 (strong opponent) to 1 (strong proponent). "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
-        "Classify the company using one of these AI sub-categories: "
+        "Classify the company using one of these sub-categories: "
         f"{taxonomy_list}. "
         "Indicate whether this is a legitimate for-profit business that earns "
         "revenue through selling products or services. If it is instead a "
