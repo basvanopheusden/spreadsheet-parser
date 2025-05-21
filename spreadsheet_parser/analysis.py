@@ -805,7 +805,6 @@ async def _collect_company_data(
             if cached:
                 cached_count += 1
             if content:
-                print(content)
                 parsed = parse_llm_response(content)
                 if parsed is not None:
                     stance_val = parsed.supportive
