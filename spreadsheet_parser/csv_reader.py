@@ -118,6 +118,67 @@ def _employee_range_contains(default: str, actual: str) -> bool:
     return True
 
 
+def _revenue_bounds(text: str) -> tuple[Optional[float], Optional[float]]:
+    """Return the numeric bounds described by a revenue range string in millions."""
+
+    if text is None:
+        return (None, None)
+
+    cleaned = str(text).replace(",", "").upper().strip()
+
+    m = re.match(r"^<\$?\s*(\d+(?:\.\d+)?)\s*([MB])$", cleaned)
+    if m:
+        val = float(m.group(1))
+        if m.group(2) == "B":
+            val *= 1000
+        return (None, val)
+
+    m = re.match(r"^>\$?\s*(\d+(?:\.\d+)?)\s*([MB])$", cleaned)
+    if m:
+        val = float(m.group(1))
+        if m.group(2) == "B":
+            val *= 1000
+        return (val, None)
+
+    m = re.match(r"^\$?\s*(\d+(?:\.\d+)?)\s*([MB])\s*(?:TO|[-–])\s*\$?\s*(\d+(?:\.\d+)?)\s*([MB])$", cleaned)
+    if m:
+        low = float(m.group(1))
+        if m.group(2) == "B":
+            low *= 1000
+        high = float(m.group(3))
+        if m.group(4) == "B":
+            high *= 1000
+        return (low, high)
+
+    m = re.match(r"^\$?\s*(\d+(?:\.\d+)?)\s*([MB])\+?$", cleaned)
+    if m:
+        val = float(m.group(1))
+        if m.group(2) == "B":
+            val *= 1000
+        return (val, None)
+
+    return (None, None)
+
+
+def _revenue_range_contains(default: str, actual: str) -> bool:
+    """Return True if ``actual`` falls within ``default`` revenue bounds."""
+
+    d_min, d_max = _revenue_bounds(default)
+    a_min, a_max = _revenue_bounds(actual)
+
+    if d_min is None or a_min is None:
+        return False
+
+    if a_min < d_min:
+        return False
+
+    if d_max is not None:
+        if a_max is None or a_max > d_max:
+            return False
+
+    return True
+
+
 def _parse_industries(value: Optional[str]) -> Optional[list[str]]:
     """Split the raw ``Industries`` string into a list of values."""
 
@@ -307,6 +368,8 @@ def read_companies_from_csvs(paths: Iterable[Union[str, Path]]) -> List[Company]
                     setattr(company, field, value)
                 elif str(current).strip().lower() != str(value).strip().lower():
                     if field == "number_of_employees" and _employee_range_contains(value, str(current)):
+                        continue
+                    if field == "estimated_revenue_range" and _revenue_range_contains(value, str(current)):
                         continue
                     logger.warning(
                         "%s row %d %s %r conflicts with filename %r",

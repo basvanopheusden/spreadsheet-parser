@@ -39,5 +39,20 @@ class TestCSVReaderAdditions(unittest.TestCase):
         self.assertEqual(companies[0].number_of_employees, "51+")
         self.assertEqual(len(cm.output), 5)
 
+    def test_revenue_range_contained_no_warning(self):
+        import tempfile
+        from pathlib import Path
+
+        csv_text = (
+            "Organization Name,IPO Status,Operating Status,Estimated Revenue Range,Number of Employees\n"
+            "Acme Corp,Private,Active,$1B to $10B,51-100\n"
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            p = Path(tmpdir) / "FS_ActivePrivate_1Bto100B_51plus.csv"
+            p.write_text(csv_text, encoding="utf-8")
+            with self.assertNoLogs("spreadsheet_parser.csv_reader", level="WARNING"):
+                companies = read_companies_from_csvs([p])
+        self.assertEqual(len(companies), 1)
+
 if __name__ == "__main__":
     unittest.main()
