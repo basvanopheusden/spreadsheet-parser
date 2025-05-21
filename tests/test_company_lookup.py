@@ -560,13 +560,16 @@ class TestRunAsync(unittest.TestCase):
                 asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
             csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
             dq_path = pathlib.Path(tmpdir) / "data_quality_report.csv"
+            dq_txt_path = pathlib.Path(tmpdir) / "data_quality_report.txt"
             abstract_path = pathlib.Path(tmpdir) / "abstract.txt"
             with csv_path.open(newline="") as f:
                 rows = list(csv.reader(f))
             self.assertTrue(abstract_path.exists())
             self.assertTrue(dq_path.exists())
+            self.assertTrue(dq_txt_path.exists())
             with dq_path.open(newline="") as f:
                 dq_rows = list(csv.reader(f))
+            dq_text = dq_txt_path.read_text().strip()
 
         self.assertEqual(rows[0][0], "Company Name")
         acme = rows[1]
@@ -575,6 +578,77 @@ class TestRunAsync(unittest.TestCase):
         self.assertEqual(globex[3], globex[5])
         self.assertEqual(dq_rows[0], ["Observation"])
         self.assertEqual(dq_rows[1][0], "ok")
+        self.assertEqual(dq_text, "- ok")
+
+    @patch("spreadsheet_parser.analysis._sample_data_quality_report", new_callable=AsyncMock)
+    @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
+    @patch("company_lookup.async_fetch_company_web_info")
+    def test_quality_csv_lists_malformed(self, mock_fetch, mock_abstract, mock_quality):
+        responses = {
+            "Acme Corp": (
+                "Summary one.\n"
+                "```json\n"
+                '{"supportive": 0.9, "is_business": true}'
+                "\n```"
+            ),
+            "Globex Inc": (
+                "Summary two.\n"
+                "```json\n"
+                '{"supportive": 0.4, "is_business": true, "is_possibly_malformed": true}'
+                "\n```"
+            ),
+        }
+
+        async def fake_fetch(name, *, return_cache_info=False, model=None, client=None):
+            return (responses[name], False)
+
+        mock_fetch.side_effect = fake_fetch
+        mock_abstract.return_value = "Abstract"
+        mock_quality.return_value = "- note"
+
+        companies = [
+            Company(
+                organization_name="Acme Corp",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries=["Technology"],
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Globex Inc",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries=["Manufacturing"],
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+                asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
+            dq_path = pathlib.Path(tmpdir) / "data_quality_report.csv"
+            with dq_path.open(newline="") as f:
+                dq_rows = list(csv.reader(f))
+
+        self.assertEqual(dq_rows[0], ["Observation"])
+        self.assertIn("Malformed Data", dq_rows[3])
+        self.assertIn("Globex Inc", dq_rows[-1])
 
 
 if __name__ == "__main__":
