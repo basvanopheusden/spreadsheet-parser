@@ -14,7 +14,7 @@ from typing import Optional, Tuple, Union
 
 import openai
 
-from .models import Company
+from .models import Company, LLMOutput
 
 
 logger = logging.getLogger(__name__)
@@ -266,7 +266,7 @@ def _parse_bool(value: object) -> Optional[bool]:
     return None
 
 
-def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Optional[dict]:
+def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Optional[LLMOutput]:
     """Extract sanitized fields and the ``supportive`` value from the LLM response.
 
     Parameters
@@ -280,12 +280,14 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
     """
 
     if not response:
+        logger.warning("Empty LLM response")
         return None
 
     match = re.search(
         r"```(?:json)?\s*(\{.*?\})\s*```", response, re.IGNORECASE | re.DOTALL
     )
     if not match:
+        logger.warning("LLM response missing JSON block")
         return None
 
     json_text = match.group(1).strip()
@@ -295,8 +297,10 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
         try:
             data = ast.literal_eval(json_text)
         except Exception:
+            logger.warning("Failed to parse JSON from LLM response")
             return None
         if not isinstance(data, dict):
+            logger.warning("LLM JSON payload not a dictionary")
             return None
 
     missing = [k for k in ("supportive", "is_business") if k not in data]
@@ -305,25 +309,56 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
             raise KeyError(
                 "Missing required field(s): " + ", ".join(sorted(missing))
             )
+        logger.warning("LLM output missing required field(s): %s", ", ".join(sorted(missing)))
         return None
 
     supportive = _parse_support_value(data.get("supportive"))
-    data["supportive"] = supportive
 
     subcat = data.get("sub_category") or data.get("subcategory")
     if isinstance(subcat, str):
-        data["sub_category"] = subcat.strip()
+        subcat = subcat.strip()
     else:
-        data["sub_category"] = None
+        subcat = None
 
 
     is_business = _parse_bool(data.get("is_business"))
-    data["is_business"] = is_business
 
     malformed = _parse_bool(data.get("is_possibly_malformed"))
-    data["is_possibly_malformed"] = malformed
 
-    return data
+    business_summary = (
+        data.get("business_model_summary")
+        or data.get("business_model")
+        or data.get("summary")
+    )
+    if isinstance(business_summary, str):
+        business_summary = business_summary.strip()
+    else:
+        business_summary = None
+
+    justification = data.get("justification")
+    if isinstance(justification, str):
+        justification = justification.strip()
+    else:
+        justification = None
+
+    try:
+        result = LLMOutput(
+            supportive=supportive,
+            is_business=is_business,
+            sub_category=subcat,
+            business_model_summary=business_summary,
+            justification=justification,
+            is_possibly_malformed=malformed,
+            raw=data,
+        )
+    except Exception:
+        logger.warning("Failed to construct LLMOutput", exc_info=True)
+        return None
+
+    if result.supportive is None or result.is_business is None:
+        logger.warning("Parsed LLM output missing critical values")
+
+    return result
 
 
 async def async_report_to_abstract(
