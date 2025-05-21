@@ -3,20 +3,8 @@ import os
 import pathlib
 import sys
 import tempfile
-import types
 import unittest
 from unittest.mock import AsyncMock, patch
-
-# Provide a minimal openai stub if the real package is unavailable
-if "openai" not in sys.modules:
-
-    def make_client(*args, **kwargs):
-        return types.SimpleNamespace(
-            responses=types.SimpleNamespace(create=lambda **kwargs: None)
-        )
-
-    openai_stub = types.SimpleNamespace(OpenAI=make_client)
-    sys.modules["openai"] = openai_stub
 
 import csv
 from parser import Company
