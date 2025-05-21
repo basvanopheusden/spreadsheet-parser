@@ -380,11 +380,6 @@ def generate_final_report(
     top_industries = set(sorted_inds[:max_industries])
 
     lines = ["Final Report:"]
-    for ind in sorted(top_industries):
-        if industry_data[ind]["supportive"] > 0:
-            lines.append(f"- {ind}: supportive company found")
-        else:
-            lines.append(f"- {ind}: no supportive company found")
 
     lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
     lines.append(f"Possibly malformed datapoints: {malformed_count}")
