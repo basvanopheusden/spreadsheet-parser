@@ -84,7 +84,8 @@ async def _fetch_with_cache(
         "'is_business', a short 'business_model_summary', a brief "
         "'justification' for the rating, and a boolean "
         "'is_possibly_malformed' flag indicating if the input data might be "
-        "corrupted or missing."
+        "corrupted or missing. If you set this flag to true also include a "
+        "'malformation_reason' string explaining what seems wrong."
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -324,6 +325,11 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
     is_business = _parse_bool(data.get("is_business"))
 
     malformed = _parse_bool(data.get("is_possibly_malformed"))
+    mal_reason = data.get("malformation_reason")
+    if isinstance(mal_reason, str):
+        mal_reason = mal_reason.strip()
+    else:
+        mal_reason = None
 
     business_summary = (
         data.get("business_model_summary")
@@ -349,6 +355,7 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
             business_model_summary=business_summary,
             justification=justification,
             is_possibly_malformed=malformed,
+            malformation_reason=mal_reason,
             raw=data,
         )
     except Exception:
@@ -357,6 +364,12 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
 
     if result.supportive is None or result.is_business is None:
         logger.warning("Parsed LLM output missing critical values")
+
+    if result.is_possibly_malformed:
+        logger.warning(
+            "Input flagged as malformed: %s",
+            result.malformation_reason or "unspecified reason",
+        )
 
     return result
 

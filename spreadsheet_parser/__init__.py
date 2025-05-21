@@ -1,5 +1,9 @@
 """Utility package for parsing company spreadsheets and looking up company info."""
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 from .models import Company, LLMOutput
 from .csv_reader import read_companies_from_csv, read_companies_from_xlsx
 from .llm import (

@@ -72,6 +72,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIn("justification", user_content)
         self.assertIn("is_business", user_content)
         self.assertIn("is_possibly_malformed", user_content)
+        self.assertIn("malformation_reason", user_content)
         self.assertIn("business_model_summary", user_content)
 
     def test_parse_llm_response(self):
@@ -90,6 +91,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertTrue(result.is_business)
         self.assertEqual(result.business_model_summary, "Acme summary")
         self.assertFalse(result.is_possibly_malformed)
+        self.assertIsNone(result.malformation_reason)
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -116,6 +118,17 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
 
         bool_no = '```json\n{"supportive": 0.5, "is_business": "no"}\n```'
         self.assertFalse(parse_llm_response(bool_no).is_business)
+
+    def test_parse_llm_response_malformation_reason(self):
+        text = (
+            "Intro.\n"
+            "```json\n"
+            '{"supportive": 0.4, "is_business": true, "is_possibly_malformed": true, "malformation_reason": "bad header"}'
+            "\n```"
+        )
+        result = parse_llm_response(text)
+        self.assertTrue(result.is_possibly_malformed)
+        self.assertEqual(result.malformation_reason, "bad header")
 
     def test_parse_llm_response_no_label(self):
         text = "Intro.\n" "```\n" '{"supportive": 0.6, "is_business": true}' "\n```"
