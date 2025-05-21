@@ -743,6 +743,24 @@ async def _sample_data_quality_report(
     return getattr(response, "output_text", None)
 
 
+def _write_quality_report_csv(path: Path, notes: Optional[str]) -> None:
+    """Save quality observations to ``path`` as a CSV file."""
+
+    lines: list[str] = []
+    if notes:
+        for line in notes.splitlines():
+            text = line.strip()
+            if not text:
+                continue
+            lines.append(text.lstrip("-* "))
+
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Observation"])
+        for line in lines:
+            writer.writerow([line])
+
+
 async def _collect_company_data(
     companies,
     max_concurrency: int,
@@ -900,6 +918,7 @@ async def run_async(
     print(f"Cached responses used: {cached_count}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    _write_quality_report_csv(output_dir / "data_quality_report.csv", quality_notes)
     table_path = output_dir / "company_analysis.csv"
     with table_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
