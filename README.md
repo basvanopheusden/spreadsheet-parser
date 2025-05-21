@@ -86,7 +86,7 @@ which reads CSV files from a directory and uses `fetch_company_web_info` to retr
 each company. The script processes only a limited number of rows (default is 5)
 and issues a warning if the combined files contain more than 100 lines.
 The tool now fetches results in parallel using asynchronous API calls. You can
-control the level of concurrency with the `--max-concurrency` flag (default is 5)
+control the level of concurrency with the `--max-concurrency` flag (default is 10)
 and select the OpenAI model with `--model-name` (default is `gpt-4o`).
 
 ```bash

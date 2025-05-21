@@ -18,7 +18,7 @@ from .llm import (
 from datetime import date, datetime
 
 DEFAULT_MAX_LINES = 5
-DEFAULT_MAX_CONCURRENCY = 5
+DEFAULT_MAX_CONCURRENCY = 10
 DEFAULT_MAX_INDUSTRIES = 25
 
 # Mapping of lower-case industry aliases to their canonical names
