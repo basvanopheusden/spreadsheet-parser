@@ -111,7 +111,7 @@ ASCII bar chart. It also lists common categories found in the input data and
 provides a short summary of numeric value distributions. Support levels are
 broken down by IPO status, revenue range and CB rank, and the output includes a
 simple company size metric that combines employee counts with these fields. The
-report lists the top three most supportive companies for each AI sub-category.
+report lists the top three most supportive companies for each sub-category.
 Stance scores in the report are expressed as percentile ranks so they always
 fall between 0 and 1. All metrics and statistical tests use these percentile
 values rather than the raw scores. The text report is written to
@@ -126,7 +126,7 @@ as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
 
 If the optional ``matplotlib`` package is installed, a ``support_by_subcat.png``
-image is also created showing supportive and opposing company counts per AI
+image is also created showing supportive and opposing company counts per
 sub-category. The bars include simple binomial error bars and are colored
 green/red for support and opposition respectively.
 
