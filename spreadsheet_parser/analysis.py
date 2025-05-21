@@ -252,9 +252,10 @@ def generate_final_report(
     company names that fail the internal ``_is_business`` heuristic.
     ``is_malformed_flags`` optionally marks rows that appear malformed. The
     final report includes a count of such datapoints.
-    ``plot_path`` optionally specifies where a bar chart of supportive and
-    opposing company counts per AI sub-category should be saved. If
-    ``matplotlib`` is unavailable the graph is skipped.
+    ``plot_path`` optionally specifies where a bar chart of the fraction of
+    supportive companies per AI sub-category should be saved. Each bar is
+    annotated with the total number of companies (``N``). If ``matplotlib`` is
+    unavailable the graph is skipped.
     ``max_industries`` controls how many of the most common industries are
     included in the output. The default shows up to 25.
     """
@@ -643,40 +644,39 @@ def generate_final_report(
         else:
             subcats_sorted = sorted(subcat_data)
             support_counts = [subcat_data[c]["supportive"] for c in subcats_sorted]
-            oppose_counts = [subcat_data[c]["total"] - subcat_data[c]["supportive"] for c in subcats_sorted]
             totals = [subcat_data[c]["total"] for c in subcats_sorted]
 
+            fractions = [sc / t if t else 0.0 for sc, t in zip(support_counts, totals)]
             errors = [
-                math.sqrt(t * (sc / t) * (1 - sc / t)) if t else 0.0
+                math.sqrt((sc / t) * (1 - sc / t) / t) if t else 0.0
                 for sc, t in zip(support_counts, totals)
             ]
 
             x = range(len(subcats_sorted))
-            width = 0.35
+            width = 0.6
             fig, ax = plt.subplots()
-            ax.bar(
-                [xi - width / 2 for xi in x],
-                support_counts,
+            bars = ax.bar(
+                x,
+                fractions,
                 width,
-                label="Support",
                 color="green",
                 yerr=errors,
                 capsize=3,
             )
-            ax.bar(
-                [xi + width / 2 for xi in x],
-                oppose_counts,
-                width,
-                label="Oppose",
-                color="red",
-                yerr=errors,
-                capsize=3,
-            )
+            for bar, total in zip(bars, totals):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height(),
+                    f"N={total}",
+                    ha="center",
+                    va="bottom",
+                )
+
             ax.set_xticks(list(x))
             ax.set_xticklabels(subcats_sorted, rotation=45, ha="right")
             ax.set_xlabel("AI Sub-Category")
-            ax.set_ylabel("Company Count")
-            ax.legend()
+            ax.set_ylabel("Fraction Supportive")
+            ax.set_ylim(0, 1)
             plt.tight_layout()
             p = Path(plot_path)
             p.parent.mkdir(parents=True, exist_ok=True)
