@@ -13,6 +13,7 @@ from spreadsheet_parser.analysis import (
     _industry,
     _collect_company_data,
 )
+import spreadsheet_parser.analysis
 from spreadsheet_parser.llm import async_report_to_abstract
 from company_lookup import async_fetch_company_web_info
 from spreadsheet_parser.csv_reader import (
@@ -39,6 +40,10 @@ async def _run_async(
     model_name: str = "gpt-4o",
 ) -> None:
 
+    quality_notes = await spreadsheet_parser.analysis._sample_data_quality_report(
+        companies, model_name
+    )
+
     (
         stances,
         subcats,
@@ -57,6 +62,8 @@ async def _run_async(
         plot_path=output_dir / "support_by_subcat.png",
 
     )
+    if quality_notes:
+        report = "Data Quality Review:\n" + quality_notes.strip() + "\n\n" + report
     print(report)
     print(f"Cached responses used: {cached_count}")
 
