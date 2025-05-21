@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 import csv
-from parser import Company
+from parser import Company, LLMOutput
 
 from company_lookup import (async_fetch_company_web_info,
                             fetch_company_web_info, parse_llm_response)
@@ -83,13 +83,13 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         )
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, dict)
-        self.assertAlmostEqual(result.get("supportive"), 0.75)
-        self.assertEqual(result.get("organization_name"), "Acme")
-        self.assertEqual(result.get("sub_category"), "Generative AI")
-        self.assertTrue(result.get("is_business"))
-        self.assertEqual(result.get("business_model_summary"), "Acme summary")
-        self.assertFalse(result.get("is_possibly_malformed"))
+        self.assertIsInstance(result, LLMOutput)
+        self.assertAlmostEqual(result.supportive, 0.75)
+        self.assertEqual(result.raw.get("organization_name"), "Acme")
+        self.assertEqual(result.sub_category, "Generative AI")
+        self.assertTrue(result.is_business)
+        self.assertEqual(result.business_model_summary, "Acme summary")
+        self.assertFalse(result.is_possibly_malformed)
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -98,38 +98,38 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIsNone(parse_llm_response(bad_json))
 
         text_yes = '```json\n{"supportive": "yes", "is_business": true}\n```'
-        self.assertEqual(parse_llm_response(text_yes)["supportive"], 1.0)
+        self.assertEqual(parse_llm_response(text_yes).supportive, 1.0)
 
         text_no = '```json\n{"supportive": "no", "is_business": true}\n```'
-        self.assertEqual(parse_llm_response(text_no)["supportive"], 0.0)
+        self.assertEqual(parse_llm_response(text_no).supportive, 0.0)
 
         text_str_number = '```json\n{"supportive": "0.25", "is_business": true}\n```'
-        self.assertAlmostEqual(parse_llm_response(text_str_number)["supportive"], 0.25)
+        self.assertAlmostEqual(parse_llm_response(text_str_number).supportive, 0.25)
 
         text_out_of_range = '```json\n{"supportive": 1.5, "is_business": true}\n```'
         result = parse_llm_response(text_out_of_range)
         self.assertIsNotNone(result)
-        self.assertIsNone(result.get("supportive"))
+        self.assertIsNone(result.supportive)
 
         bool_yes = '```json\n{"supportive": 0.5, "is_business": "yes"}\n```'
-        self.assertTrue(parse_llm_response(bool_yes)["is_business"])
+        self.assertTrue(parse_llm_response(bool_yes).is_business)
 
         bool_no = '```json\n{"supportive": 0.5, "is_business": "no"}\n```'
-        self.assertFalse(parse_llm_response(bool_no)["is_business"])
+        self.assertFalse(parse_llm_response(bool_no).is_business)
 
     def test_parse_llm_response_no_label(self):
         text = "Intro.\n" "```\n" '{"supportive": 0.6, "is_business": true}' "\n```"
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, dict)
-        self.assertAlmostEqual(result.get("supportive"), 0.6)
+        self.assertIsInstance(result, LLMOutput)
+        self.assertAlmostEqual(result.supportive, 0.6)
 
     def test_parse_llm_response_single_quotes(self):
         text = "Intro.\n" "```json\n" "{'supportive': '0.3', 'is_business': True}" "\n```"
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, dict)
-        self.assertAlmostEqual(result.get("supportive"), 0.3)
+        self.assertIsInstance(result, LLMOutput)
+        self.assertAlmostEqual(result.supportive, 0.3)
 
     def test_parse_llm_response_embedded_apostrophes(self):
         text = (
@@ -140,9 +140,9 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         )
         result = parse_llm_response(text)
         self.assertIsNotNone(result)
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get("organization_name"), "O'Reilly")
-        self.assertAlmostEqual(result.get("supportive"), 0.6)
+        self.assertIsInstance(result, LLMOutput)
+        self.assertEqual(result.raw.get("organization_name"), "O'Reilly")
+        self.assertAlmostEqual(result.supportive, 0.6)
 
     def test_parse_llm_response_missing_keys(self):
         only_support = '```json\n{"supportive": 0.5}\n```'

@@ -74,11 +74,11 @@ You may provide just the company name or pass a `Company` object returned from
 `read_companies_from_csv` or `read_companies_from_xlsx`. 
 When a dataclass is supplied, all details from the CSV
 are included in the prompt sent to the LLM so that it can give a more informed
-summary. Responses are parsed with `parse_llm_response`, which now checks that
-the JSON payload contains `supportive` and `is_business` keys. If either key is
-missing the function returns `None` (or raises when called with
-`raise_on_missing=True`). In all cases the automated results should be reviewed
-manually.
+summary. Responses are parsed with `parse_llm_response`, which now returns a
+`LLMOutput` dataclass. The parser checks that the JSON payload contains the
+required `supportive` and `is_business` keys. If either key is missing or the
+payload is malformed the function logs a warning and returns `None`. In all
+cases the automated results should be reviewed manually.
 ## Lookup Script
 
 For convenience, the repository provides a small CLI script, `lookup_companies.py`,

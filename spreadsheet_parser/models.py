@@ -36,3 +36,28 @@ CANONICAL_HEADERS: Dict[str, str] = {
     "description": "Description",
     "cb_rank": "CB Rank (Company)",
 }
+
+
+@dataclass
+class LLMOutput:
+    """Parsed fields returned by the language model."""
+
+    supportive: Optional[float]
+    is_business: Optional[bool]
+    sub_category: Optional[str] = None
+    business_model_summary: Optional[str] = None
+    justification: Optional[str] = None
+    is_possibly_malformed: Optional[bool] = None
+    raw: Optional[Dict[str, object]] = None
+
+    def __post_init__(self) -> None:
+        if self.sub_category is not None and not self.sub_category.strip():
+            self.sub_category = None
+        if self.justification is not None and not self.justification.strip():
+            self.justification = None
+        if (
+            self.business_model_summary is not None
+            and not self.business_model_summary.strip()
+        ):
+            self.business_model_summary = None
+
