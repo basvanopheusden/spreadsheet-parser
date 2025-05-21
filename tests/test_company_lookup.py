@@ -650,6 +650,78 @@ class TestRunAsync(unittest.TestCase):
         self.assertIn("Malformed Data", dq_rows[3])
         self.assertIn("Globex Inc", dq_rows[-1])
 
+    @patch("spreadsheet_parser.analysis._sample_data_quality_report", new_callable=AsyncMock)
+    @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
+    @patch("company_lookup.async_fetch_company_web_info")
+    def test_malformed_data_csv(self, mock_fetch, mock_abstract, mock_quality):
+        responses = {
+            "Acme Corp": (
+                "Summary one.\n"
+                "```json\n"
+                '{"supportive": 0.9, "is_business": true}'
+                "\n```"
+            ),
+            "Globex Inc": (
+                "Summary two.\n"
+                "```json\n"
+                '{"supportive": 0.4, "is_business": true, "is_possibly_malformed": true, "malformation_reason": "bad"}'
+                "\n```"
+            ),
+        }
+
+        async def fake_fetch(name, *, return_cache_info=False, model=None, client=None):
+            return (responses[name], False)
+
+        mock_fetch.side_effect = fake_fetch
+        mock_abstract.return_value = "Abstract"
+        mock_quality.return_value = "- note"
+
+        companies = [
+            Company(
+                organization_name="Acme Corp",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries=["Technology"],
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+            Company(
+                organization_name="Globex Inc",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries=["Manufacturing"],
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+                asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
+            mal_path = pathlib.Path(tmpdir) / "malformed_data.csv"
+            self.assertTrue(mal_path.exists())
+            with mal_path.open(newline="") as f:
+                rows = list(csv.DictReader(f))
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["organization_name"], "Globex Inc")
+        self.assertEqual(row.get("malformation_reason"), "bad")
+
 
 if __name__ == "__main__":
     unittest.main()
