@@ -949,8 +949,12 @@ async def run_async(
     output_dir: Path,
     *,
     model_name: str = "gpt-4o",
+    quality_sample_size: int = 100,
+    max_industries: int = DEFAULT_MAX_INDUSTRIES,
 ) -> None:
-    quality_notes = await _sample_data_quality_report(companies, model_name)
+    quality_notes = await _sample_data_quality_report(
+        companies, model_name, sample_size=quality_sample_size
+    )
 
     (
         stances,
@@ -971,6 +975,7 @@ async def run_async(
         biz_list,
         is_malformed_flags=mal_list,
         plot_path=output_dir / "support_by_subcat.png",
+        max_industries=max_industries,
     )
 
     if quality_notes:
