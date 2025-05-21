@@ -23,36 +23,54 @@ logger = logging.getLogger(__name__)
 # Simple adaptive rate limiter shared across all OpenAI calls in this module.
 # ``_NEXT_REQUEST`` stores the earliest time a new request may be made.  The
 # delay between requests is controlled by ``_RATE_DELAY`` which is increased
-# when we encounter rate limit errors and slowly decreased on successful calls.
+# when we encounter rate limit errors and decreased after a streak of
+# successful calls.
 _RATE_LOCK = asyncio.Lock()
 _NEXT_REQUEST = 0.0
-_RATE_DELAY = 0.5  # start slightly below 1 req/sec
+_RATE_DELAY = 0.2  # start at a higher request rate
+_MIN_DELAY = 0.05  # minimum spacing between requests
 _MAX_DELAY = 60.0
+_SUCCESS_COUNT = 0  # number of consecutive successful requests
+_SUCCESS_THRESHOLD = 5  # shrink delay after this many successes
 
 
-_AI_SUBCATEGORIES = [
-    "Generative AI",
-    "Machine Learning",
-    "Natural Language Processing",
-    "Computer Vision",
-    "Robotics",
-    "AI Infrastructure",
-    "AI Hardware",
-    "Big Data & Analytics",
-    "Security AI",
-    "Finance AI",
-    "Health/Bio AI",
-    "Education AI",
-    "Marketing AI",
-    "Other AI",
-    "Non-AI",
+# List of high level industry sub-categories used when prompting the model.
+# These terms are intentionally broader than just "AI" so the taxonomy can be
+# reused for a variety of businesses.
+_SUBCATEGORIES = [
+    "Accounting",
+    "Advice",
+    "Asset Management",
+    "Auto Insurance",
+    "Banking",
+    "Consulting",
+    "FinTech",
+    "Finance",
+    "Financial Services",
+    "Health Care",
+    "Health Insurance",
+    "Information Technology",
+    "Insurance",
+    "Leasing",
+    "Lending",
+    "Life Insurance",
+    "Payments",
+    "Professional Services",
+    "Property Management",
+    "Real Estate",
+    "Real Estate Investment",
+    "Risk Management",
+    "Software",
+    "Venture Capital",
+    "Wealth Management",
+    "Other",
 ]
 
 
 async def _call_openai_with_retry(client, **kwargs):
     """Call ``client.responses.create`` respecting a global rate limit."""
 
-    global _NEXT_REQUEST, _RATE_DELAY
+    global _NEXT_REQUEST, _RATE_DELAY, _SUCCESS_COUNT
 
     attempts = 0
     while True:
@@ -67,8 +85,10 @@ async def _call_openai_with_retry(client, **kwargs):
             response = client.responses.create(**kwargs)
             if inspect.isawaitable(response):
                 response = await response
-            # Gradually decrease delay on success.
-            _RATE_DELAY = max(0.5, _RATE_DELAY * 0.9)
+            _SUCCESS_COUNT += 1
+            if _SUCCESS_COUNT >= _SUCCESS_THRESHOLD:
+                _RATE_DELAY = max(_MIN_DELAY, _RATE_DELAY * 0.8)
+                _SUCCESS_COUNT = 0
             return response
         except openai.RateLimitError as e:
             attempts += 1
@@ -81,6 +101,7 @@ async def _call_openai_with_retry(client, **kwargs):
             else:
                 retry = min(_RATE_DELAY * 2, _MAX_DELAY)
             logger.warning("Rate limit hit, retrying in %.1f seconds", retry)
+            _SUCCESS_COUNT = 0
             _RATE_DELAY = min(_MAX_DELAY, max(_RATE_DELAY, retry))
             await asyncio.sleep(retry)
         except Exception as e:
@@ -91,6 +112,7 @@ async def _call_openai_with_retry(client, **kwargs):
             logger.warning(
                 "API request failed (%s). Retrying in %.1f seconds", type(e).__name__, retry
             )
+            _SUCCESS_COUNT = 0
             await asyncio.sleep(retry)
 
 
@@ -117,14 +139,14 @@ async def _fetch_with_cache(
             "Correct any malformed values and respond with the cleaned data.\n"
             "```json\n" + csv_json + "\n```\n"
         )
-    taxonomy_list = "; ".join(_AI_SUBCATEGORIES)
+    taxonomy_list = "; ".join(_SUBCATEGORIES)
     prompt += (
         "Then summarize the company's business model and data strategy and "
         "rate their likely support for interoperability legislation on a scale "
         "from 0 (strong opponent) to 1 (strong proponent). "
         "Mozilla and the Electronic Frontier Foundation would be close to 1, "
         "while Meta and Palantir might be near 0. "
-        "Classify the company using one of these AI sub-categories: "
+        "Classify the company using one of these sub-categories: "
         f"{taxonomy_list}. "
         "Indicate whether this is a legitimate for-profit business that earns "
         "revenue through selling products or services. If it is instead a "

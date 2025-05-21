@@ -105,7 +105,7 @@ async def _run_async(
             [
                 "Company Name",
                 "Industry",
-                "AI Sub-Category",
+                "Sub-Category",
                 "Business Model Summary",
                 "Likely Stance on Interoperability",
                 "Qualitative Justification",
