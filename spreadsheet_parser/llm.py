@@ -81,8 +81,10 @@ async def _fetch_with_cache(
         "serves the company's interests. "
         "Return ONLY a JSON code block containing the sanitized fields along "
         "with a 'sub_category' string, numeric 'supportive' value, a boolean "
-        "'is_business', a short 'business_model_summary', and a brief "
-        "'justification' for the rating."
+        "'is_business', a short 'business_model_summary', a brief "
+        "'justification' for the rating, and a boolean "
+        "'is_possibly_malformed' flag indicating if the input data might be "
+        "corrupted or missing."
     )
 
     cache_dir = Path.home() / "llm_cache"
@@ -314,8 +316,12 @@ def parse_llm_response(response: str, *, raise_on_missing: bool = False) -> Opti
     else:
         data["sub_category"] = None
 
+
     is_business = _parse_bool(data.get("is_business"))
     data["is_business"] = is_business
+
+    malformed = _parse_bool(data.get("is_possibly_malformed"))
+    data["is_possibly_malformed"] = malformed
 
     return data
 

@@ -228,6 +228,7 @@ def generate_final_report(
     subcategories: Optional[List[Optional[str]]] = None,
     justifications: Optional[List[Optional[str]]] = None,
     is_business_flags: Optional[List[Optional[bool]]] = None,
+    is_malformed_flags: Optional[List[Optional[bool]]] = None,
     *,
     plot_path: Optional[Path] = None,
 ) -> str:
@@ -244,6 +245,8 @@ def generate_final_report(
     ``is_business_flags`` allows callers to specify whether each row represents
     a for-profit business. Any entries marked as ``False`` are ignored, as are
     company names that fail the internal ``_is_business`` heuristic.
+    ``is_malformed_flags`` optionally marks rows that appear malformed. The
+    final report includes a count of such datapoints.
     ``plot_path`` optionally specifies where a bar chart of supportive and
     opposing company counts per AI sub-category should be saved. If
     ``matplotlib`` is unavailable the graph is skipped.
@@ -283,15 +286,23 @@ def generate_final_report(
     # Use percentile ranks for all downstream calculations
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
     biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
-    for company, stance, perc, subcat, is_biz in zip(
+    mal_iter = (
+        is_malformed_flags if is_malformed_flags is not None else [None] * len(companies)
+    )
+
+    malformed_count = 0
+    for company, stance, perc, subcat, is_biz, mal_flag in zip(
         companies,
         stances,
         percentiles,
         sub_iter,
         biz_iter,
+        mal_iter,
     ):
         if is_biz is False or not _is_business(company.organization_name):
             continue
+        if mal_flag:
+            malformed_count += 1
         total_companies += 1
         if perc is not None and perc >= 0.5:
             total_support += 1
@@ -356,6 +367,7 @@ def generate_final_report(
             lines.append(f"- {ind}: no supportive company found")
 
     lines.append(f"Overall {total_support}/{total_companies} companies are supportive.")
+    lines.append(f"Possibly malformed datapoints: {malformed_count}")
 
     lines.append("\nSupportive companies by industry:")
     max_bar_width = 20
@@ -686,6 +698,7 @@ async def _collect_company_data(
     List[Optional[str]],
     List[Optional[str]],
     List[Optional[bool]],
+    List[Optional[bool]],
     List[List[str]],
     int,
 ]:
@@ -703,6 +716,7 @@ async def _collect_company_data(
     subcats: List[Optional[str]] = []
     just_list: List[Optional[str]] = []
     biz_list: List[Optional[bool]] = []
+    mal_list: List[Optional[bool]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
 
@@ -723,6 +737,7 @@ async def _collect_company_data(
         subcat: Optional[str] = None
         justification: Optional[str] = None
         is_biz: Optional[bool] = None
+        malformed: Optional[bool] = None
         summary_text = ""
         if isinstance(result, Exception):
             pass
@@ -743,6 +758,7 @@ async def _collect_company_data(
                         or parsed.get("summary")
                     )
                     is_biz = parsed.get("is_business")
+                    malformed = parsed.get("is_possibly_malformed")
                 else:
                     parsed_summary = None
 
@@ -764,6 +780,7 @@ async def _collect_company_data(
         subcats.append(subcat)
         just_list.append(justification)
         biz_list.append(is_biz)
+        mal_list.append(malformed)
         table_rows.append(
             [
                 company.organization_name,
@@ -796,7 +813,7 @@ async def _collect_company_data(
         except Exception:
             pass
 
-    return stances, subcats, just_list, biz_list, table_rows, cached_count
+    return stances, subcats, just_list, biz_list, mal_list, table_rows, cached_count
 
 
 async def run_async(
@@ -812,6 +829,7 @@ async def run_async(
         subcats,
         just_list,
         biz_list,
+        mal_list,
         table_rows,
         cached_count,
     ) = await _collect_company_data(companies, max_concurrency, model_name)
@@ -822,6 +840,7 @@ async def run_async(
         subcats,
         just_list,
         biz_list,
+        is_malformed_flags=mal_list,
         plot_path=output_dir / "support_by_subcat.png",
     )
     print(report)

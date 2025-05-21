@@ -83,13 +83,14 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertIn("sub_category", user_content)
         self.assertIn("justification", user_content)
         self.assertIn("is_business", user_content)
+        self.assertIn("is_possibly_malformed", user_content)
         self.assertIn("business_model_summary", user_content)
 
     def test_parse_llm_response(self):
         text = (
             "Acme summary.\n"
             "```json\n"
-            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI", "is_business": true, "business_model_summary": "Acme summary"}'
+            '{"organization_name": "Acme", "supportive": 0.75, "sub_category": "Generative AI", "is_business": true, "is_possibly_malformed": false, "business_model_summary": "Acme summary"}'
             "\n```"
         )
         result = parse_llm_response(text)
@@ -100,6 +101,7 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertEqual(result.get("sub_category"), "Generative AI")
         self.assertTrue(result.get("is_business"))
         self.assertEqual(result.get("business_model_summary"), "Acme summary")
+        self.assertFalse(result.get("is_possibly_malformed"))
 
     def test_parse_llm_response_edge_cases(self):
         self.assertIsNone(parse_llm_response("nonsense"))
@@ -325,7 +327,12 @@ class TestFinalReport(unittest.TestCase):
             "Less interested in openness",
             "Strong advocate for open APIs",
         ]
-        report = generate_final_report(companies, stances, justifications=justifications)
+        report = generate_final_report(
+            companies,
+            stances,
+            justifications=justifications,
+            is_malformed_flags=[False, False, True],
+        )
         self.assertIn("Manufacturing: supportive company found", report)
         self.assertIn("Technology: no supportive company found", report)
         self.assertIn("Software: supportive company found", report)
@@ -348,6 +355,7 @@ class TestFinalReport(unittest.TestCase):
         self.assertIn("Conclusions:", report)
         self.assertIn("Example justifications:", report)
         self.assertIn("Acme Corp (Support): Because open standards are good", report)
+        self.assertIn("Possibly malformed datapoints: 1", report)
 
     def test_excludes_non_business(self):
         companies = [
