@@ -10,6 +10,7 @@ from spreadsheet_parser.analysis import (
     generate_final_report,
     DEFAULT_MAX_LINES,
     DEFAULT_MAX_CONCURRENCY,
+    DEFAULT_MAX_INDUSTRIES,
     _industry,
     _collect_company_data,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "generate_final_report",
     "DEFAULT_MAX_LINES",
     "DEFAULT_MAX_CONCURRENCY",
+    "DEFAULT_MAX_INDUSTRIES",
     "_industry",
     "main",
 ]
@@ -34,10 +36,12 @@ async def _run_async(
     output_dir: Path,
     *,
     model_name: str = "gpt-4o",
+    quality_sample_size: int = 100,
+    max_industries: int = DEFAULT_MAX_INDUSTRIES,
 ) -> None:
 
     quality_notes = await spreadsheet_parser.analysis._sample_data_quality_report(
-        companies, model_name
+        companies, model_name, sample_size=quality_sample_size
     )
 
     (
@@ -59,6 +63,7 @@ async def _run_async(
         biz_list,
         is_malformed_flags=mal_list,
         plot_path=output_dir / "support_by_subcat.png",
+        max_industries=max_industries,
 
     )
     if quality_notes:
@@ -154,6 +159,18 @@ def main() -> None:
         default="gpt-4o",
         help="OpenAI model to use when fetching web summaries",
     )
+    parser.add_argument(
+        "--quality-sample-size",
+        type=int,
+        default=100,
+        help="Rows randomly sampled for the data quality report",
+    )
+    parser.add_argument(
+        "--max-industries",
+        type=int,
+        default=DEFAULT_MAX_INDUSTRIES,
+        help=f"Maximum industries shown in the final report (default: {DEFAULT_MAX_INDUSTRIES})",
+    )
     args = parser.parse_args()
 
     csv_paths = [
@@ -185,6 +202,8 @@ def main() -> None:
             args.max_concurrency,
             args.output_dir,
             model_name=args.model_name,
+            quality_sample_size=args.quality_sample_size,
+            max_industries=args.max_industries,
         )
     )
 

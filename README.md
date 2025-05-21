@@ -86,12 +86,17 @@ which reads CSV files from a directory and uses `fetch_company_web_info` to retr
 each company. The script processes only a limited number of rows (default is 5)
 and issues a warning if the combined files contain more than 100 lines.
 The tool now fetches results in parallel using asynchronous API calls. You can
-control the level of concurrency with the `--max-concurrency` flag (default is 10)
-and select the OpenAI model with `--model-name` (default is `gpt-4o`).
+control the level of concurrency with the `--max-concurrency` flag (default is 5)
+and select the OpenAI model with `--model-name` (default is `gpt-4o`). Use
+`--quality-sample-size` to specify how many random rows should be inspected for
+data corruption and `--max-industries` to limit how many industries appear in
+the report.
 
 ```bash
 python lookup_companies.py path/to/csv_directory \
-    --max-lines 5 --max-concurrency 10 --model-name gpt-4o
+    --max-lines 5 --max-concurrency 10 \
+    --model-name gpt-4o --quality-sample-size 100 \
+    --max-industries 25
 ```
 
 This will fetch summaries and then display only the final report. The output
