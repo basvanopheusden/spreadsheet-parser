@@ -126,9 +126,9 @@ as a concise scientific paper abstract. This abstract is saved as
 ``abstract.txt`` in the chosen output directory.
 
 If the optional ``matplotlib`` package is installed, a ``support_by_subcat.png``
-image is also created showing supportive and opposing company counts per
-sub-category. The bars include simple binomial error bars and are colored
-green/red for support and opposition respectively.
+image is also created showing the fraction of supportive companies for each AI
+sub-category. Bars include binomial proportion error bars and a label
+indicating the total number of companies (``N``).
 
 Example snippet:
 
