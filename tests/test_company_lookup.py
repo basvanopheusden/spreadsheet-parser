@@ -425,6 +425,54 @@ class TestIndustryNormalization(unittest.TestCase):
         self.assertEqual(_industry(alias2), "Artificial Intelligence")
 
 
+class TestIndustryLimit(unittest.TestCase):
+    def test_top_25_only(self):
+        companies = []
+        stances = []
+        letters = [chr(ord('A') + i) for i in range(26)]
+        for letter in letters:
+            companies.append(
+                Company(
+                    organization_name=f"Co{letter}",
+                    organization_name_url=None,
+                    estimated_revenue_range=None,
+                    ipo_status=None,
+                    operating_status=None,
+                    acquisition_status=None,
+                    company_type=None,
+                    number_of_employees=None,
+                    full_description=None,
+                    industries=[f"Industry{letter}"],
+                    headquarters_location=None,
+                    description=None,
+                    cb_rank=None,
+                )
+            )
+            stances.append(0.9)
+        companies.append(
+            Company(
+                organization_name="Extra",
+                organization_name_url=None,
+                estimated_revenue_range=None,
+                ipo_status=None,
+                operating_status=None,
+                acquisition_status=None,
+                company_type=None,
+                number_of_employees=None,
+                full_description=None,
+                industries=["IndustryA"],
+                headquarters_location=None,
+                description=None,
+                cb_rank=None,
+            )
+        )
+        stances.append(0.9)
+
+        report = generate_final_report(companies, stances)
+        self.assertIn("IndustryA: supportive company found", report)
+        self.assertNotIn("IndustryZ: supportive company found", report)
+
+
 class TestRunAsync(unittest.TestCase):
     @patch("spreadsheet_parser.analysis._sample_data_quality_report", new_callable=AsyncMock)
     @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
