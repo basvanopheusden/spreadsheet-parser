@@ -9,7 +9,7 @@ import inspect
 from dataclasses import asdict
 from .models import Company
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Iterable
 
 from .llm import (
     parse_llm_response,
@@ -743,22 +743,38 @@ async def _sample_data_quality_report(
     return getattr(response, "output_text", None)
 
 
-def _write_quality_report_csv(path: Path, notes: Optional[str]) -> None:
-    """Save quality observations to ``path`` as a CSV file."""
+def _write_quality_report_csv(
+    path: Path, notes: Optional[str], malformed: Iterable[str] | None = None
+) -> None:
+    """Save quality observations and malformed rows to ``path`` as CSV."""
 
-    lines: list[str] = []
+    note_lines: list[str] = []
     if notes:
         for line in notes.splitlines():
             text = line.strip()
             if not text:
                 continue
-            lines.append(text.lstrip("-* "))
+            note_lines.append(text.lstrip("-* "))
+
+    malformed = list(malformed or [])
 
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Observation"])
-        for line in lines:
+        for line in note_lines:
             writer.writerow([line])
+        if malformed:
+            writer.writerow([])
+            writer.writerow(["Malformed Data"])
+            for name in malformed:
+                writer.writerow([name])
+
+
+def _write_quality_report_txt(path: Path, notes: Optional[str]) -> None:
+    """Save raw quality notes to a text file."""
+
+    text = notes.strip() if notes else ""
+    path.write_text(text, encoding="utf-8")
 
 
 async def _collect_company_data(
@@ -918,7 +934,17 @@ async def run_async(
     print(f"Cached responses used: {cached_count}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    _write_quality_report_csv(output_dir / "data_quality_report.csv", quality_notes)
+    malformed_names = [
+        c.organization_name
+        for c, mal in zip(companies, mal_list)
+        if mal
+    ]
+    _write_quality_report_csv(
+        output_dir / "data_quality_report.csv",
+        quality_notes,
+        malformed_names,
+    )
+    _write_quality_report_txt(output_dir / "data_quality_report.txt", quality_notes)
     table_path = output_dir / "company_analysis.csv"
     with table_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
