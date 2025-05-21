@@ -5,7 +5,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from .models import Company, LLMOutput
-from .csv_reader import read_companies_from_csv, read_companies_from_xlsx
+from .csv_reader import (
+    read_companies_from_csv,
+    read_companies_from_xlsx,
+    read_companies_from_csvs,
+)
 from .llm import (
     fetch_company_web_info,
     async_fetch_company_web_info,
@@ -36,6 +40,7 @@ __all__ = [
     "Company",
     "LLMOutput",
     "read_companies_from_csv",
+    "read_companies_from_csvs",
     "read_companies_from_xlsx",
     "fetch_company_web_info",
     "async_fetch_company_web_info",

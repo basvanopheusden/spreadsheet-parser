@@ -2,8 +2,11 @@ import csv
 import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Union, Optional
+import logging
 
 from .models import Company, CANONICAL_HEADERS
+
+logger = logging.getLogger(__name__)
 
 
 def _sanitize(text: str) -> str:
@@ -190,3 +193,85 @@ def read_companies_from_xlsx(path: Union[str, Path]) -> List[Company]:
         companies.append(company)
 
     return companies
+
+
+def _parse_filename_metadata(path: Path) -> Dict[str, Optional[str]]:
+    """Return field defaults extracted from a Crunchbase search filename."""
+
+    stem = path.stem
+    if stem.lower().startswith("fs_"):
+        stem = stem[3:]
+    parts = stem.split("_")
+
+    operating_status: Optional[str] = None
+    ipo_status: Optional[str] = None
+    revenue: Optional[str] = None
+    employees: Optional[str] = None
+
+    if len(parts) >= 4:
+        operating_status, ipo_status, revenue, employees = parts[:4]
+    elif len(parts) == 3:
+        token = parts[0]
+        m = re.match(r"([A-Za-z]+?)([A-Z].*)$", token)
+        if m:
+            operating_status, ipo_status = m.groups()
+        else:
+            operating_status = token
+        revenue = parts[1]
+        employees = parts[2]
+    else:
+        return {}
+
+    def _format_rev(token: str) -> str:
+        m = re.match(r"(?i)(\d+(?:\.\d+)?)([MB])to(\d+(?:\.\d+)?)([MB])", token)
+        if m:
+            return f"${m.group(1)}{m.group(2).upper()} to ${m.group(3)}{m.group(4).upper()}"
+        m = re.match(r"(?i)(\d+(?:\.\d+)?)([MB])plus", token)
+        if m:
+            return f">${m.group(1)}{m.group(2).upper()}"
+        return token
+
+    def _format_emp(token: str) -> str:
+        m = re.match(r"(?i)(\d+)to(\d+)", token)
+        if m:
+            return f"{m.group(1)}-{m.group(2)}"
+        m = re.match(r"(?i)(\d+)plus", token)
+        if m:
+            return f"{m.group(1)}+"
+        return token
+
+    return {
+        "operating_status": operating_status,
+        "ipo_status": ipo_status,
+        "estimated_revenue_range": _format_rev(revenue) if revenue else None,
+        "number_of_employees": _format_emp(employees) if employees else None,
+    }
+
+
+def read_companies_from_csvs(paths: Iterable[Union[str, Path]]) -> List[Company]:
+    """Read companies from multiple CSV files, applying filename metadata."""
+
+    all_companies: List[Company] = []
+    for path in paths:
+        p = Path(path)
+        defaults = _parse_filename_metadata(p)
+        companies = read_companies_from_csv(p)
+        for idx, company in enumerate(companies):
+            for field, value in defaults.items():
+                if value is None:
+                    continue
+                current = getattr(company, field)
+                if current in (None, ""):
+                    setattr(company, field, value)
+                elif str(current).strip().lower() != str(value).strip().lower():
+                    logger.warning(
+                        "%s row %d %s %r conflicts with filename %r",
+                        p.name,
+                        idx,
+                        field,
+                        current,
+                        value,
+                    )
+        all_companies.extend(companies)
+
+    return all_companies
