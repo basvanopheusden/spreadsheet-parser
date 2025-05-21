@@ -4,7 +4,6 @@ from pathlib import Path
 from argparse import ArgumentParser
 import asyncio
 import csv
-import os
 
 from spreadsheet_parser.analysis import (
     generate_final_report,
@@ -15,11 +14,7 @@ from spreadsheet_parser.analysis import (
 )
 import spreadsheet_parser.analysis
 from spreadsheet_parser.llm import async_report_to_abstract
-from company_lookup import async_fetch_company_web_info
-from spreadsheet_parser.csv_reader import (
-    read_companies_from_csv,
-    read_companies_from_xlsx,
-)
+from spreadsheet_parser.csv_reader import read_companies_from_csvs
 
 from spreadsheet_parser.quality import find_duplicate_names, rows_with_missing_fields
 
@@ -104,9 +99,13 @@ run_async = _run_async
 
 def main() -> None:
     parser = ArgumentParser(
-        description="Fetch web summaries for companies listed in a CSV file"
+        description="Fetch web summaries for companies listed in CSV files inside a directory"
     )
-    parser.add_argument("csv", type=Path, help="CSV file containing company data")
+    parser.add_argument(
+        "csv_dir",
+        type=Path,
+        help="Directory containing company CSV files",
+    )
     parser.add_argument(
         "--max-lines",
         type=int,
@@ -132,10 +131,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.csv.suffix.lower() in {".xlsx", ".xls", ".xlsm"}:
-        companies = read_companies_from_xlsx(args.csv)
-    else:
-        companies = read_companies_from_csv(args.csv)
+    csv_paths = [
+        p
+        for p in sorted(args.csv_dir.iterdir())
+        if p.is_file() and p.suffix.lower() == ".csv"
+    ]
+    companies = read_companies_from_csvs(csv_paths)
     duplicates = find_duplicate_names(companies)
     if duplicates:
         print("Duplicate organization names found:")
@@ -147,7 +148,7 @@ def main() -> None:
 
     if total_rows > 100:
         print(
-            f"Warning: {args.csv} contains {total_rows} rows. "
+            f"Warning: {args.csv_dir} contains {total_rows} rows. "
             f"Only the first {args.max_lines} will be processed."
         )
 
