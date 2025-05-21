@@ -283,29 +283,36 @@ def generate_final_report(
     support_emp: List[float] = []
     nonsupport_emp: List[float] = []
 
-    percentiles = percentile_ranks(stances)
-    total_companies = 0
-    total_support = 0
-    # Use percentile ranks for all downstream calculations
     sub_iter = subcategories if subcategories is not None else [None] * len(companies)
     biz_iter = is_business_flags if is_business_flags is not None else [None] * len(companies)
     mal_iter = (
         is_malformed_flags if is_malformed_flags is not None else [None] * len(companies)
     )
 
+    valid_indices = [
+        idx
+        for idx, (c, biz, mal) in enumerate(zip(companies, biz_iter, mal_iter))
+        if not (biz is False or not _is_business(c.organization_name) or mal)
+    ]
+    valid_companies = [companies[i] for i in valid_indices]
+
+    percentiles_raw = percentile_ranks([stances[i] for i in valid_indices])
+    percentile_map = {idx: p for idx, p in zip(valid_indices, percentiles_raw)}
+    percentiles = [percentile_map.get(i) for i in range(len(companies))]
+
+    total_companies = 0
+    total_support = 0
+
     malformed_count = 0
-    for company, stance, perc, subcat, is_biz, mal_flag in zip(
-        companies,
-        stances,
-        percentiles,
-        sub_iter,
-        biz_iter,
-        mal_iter,
+    for idx, (company, stance, subcat, is_biz, mal_flag) in enumerate(
+        zip(companies, stances, sub_iter, biz_iter, mal_iter)
     ):
         if is_biz is False or not _is_business(company.organization_name):
             continue
+        perc = percentile_map.get(idx)
         if mal_flag:
             malformed_count += 1
+            continue
         total_companies += 1
         if perc is not None and perc >= 0.5:
             total_support += 1
@@ -531,9 +538,9 @@ def generate_final_report(
             elif ttest_ind:
                 lines.append("Not enough data for t-test of size metric.")
 
-    industries_all = [ind for c in companies for ind in _industry_list(c)]
-    ipo_statuses = [c.ipo_status or "Unknown" for c in companies]
-    emp_values = [e for c in companies if (e := _employee_count(c)) is not None]
+    industries_all = [ind for c in valid_companies for ind in _industry_list(c)]
+    ipo_statuses = [c.ipo_status or "Unknown" for c in valid_companies]
+    emp_values = [e for c in valid_companies if (e := _employee_count(c)) is not None]
 
     lines.append("\nInput data statistics:")
     if industries_all:
@@ -550,9 +557,9 @@ def generate_final_report(
     if justifications:
         biz_iter_all = is_business_flags if is_business_flags is not None else [None] * len(companies)
         examples = [
-            (c.organization_name, p, j)
-            for c, p, j, biz in zip(companies, percentiles, justifications, biz_iter_all)
-            if j and biz is not False and _is_business(c.organization_name)
+            (c.organization_name, percentiles[i], j)
+            for i, (c, j, biz, mal) in enumerate(zip(companies, justifications, biz_iter_all, mal_iter))
+            if mal is not True and j and biz is not False and _is_business(c.organization_name)
         ]
         if examples:
             # Select examples spread across the stance range [0, 1]
