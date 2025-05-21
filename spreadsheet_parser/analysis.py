@@ -253,7 +253,7 @@ def generate_final_report(
     ``is_malformed_flags`` optionally marks rows that appear malformed. The
     final report includes a count of such datapoints.
     ``plot_path`` optionally specifies where a bar chart of supportive and
-    opposing company counts per AI sub-category should be saved. If
+    opposing company counts per sub-category should be saved. If
     ``matplotlib`` is unavailable the graph is skipped.
     ``max_industries`` controls how many of the most common industries are
     included in the output. The default shows up to 25.
@@ -407,7 +407,7 @@ def generate_final_report(
         else:
             lines.append(f"  {ind}: n/a")
 
-    lines.append("\nSupport by AI sub-category:")
+    lines.append("\nSupport by sub-category:")
     for cat in sorted(subcat_data):
         d = subcat_data[cat]
         lines.append(f"  {cat}: {d['supportive']}/{d['total']} supportive")
@@ -674,7 +674,7 @@ def generate_final_report(
             )
             ax.set_xticks(list(x))
             ax.set_xticklabels(subcats_sorted, rotation=45, ha="right")
-            ax.set_xlabel("AI Sub-Category")
+            ax.set_xlabel("Sub-Category")
             ax.set_ylabel("Company Count")
             ax.legend()
             plt.tight_layout()
@@ -1009,7 +1009,7 @@ async def run_async(
             [
                 "Company Name",
                 "Industry",
-                "AI Sub-Category",
+                "Sub-Category",
                 "Business Model Summary",
                 "Likely Stance on Interoperability",
                 "Qualitative Justification",
