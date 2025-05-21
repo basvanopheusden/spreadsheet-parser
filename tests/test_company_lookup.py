@@ -130,6 +130,17 @@ class TestFetchCompanyWebInfo(unittest.TestCase):
         self.assertTrue(result.is_possibly_malformed)
         self.assertEqual(result.malformation_reason, "bad header")
 
+    def test_parse_llm_response_reason_cleared_when_flag_false(self):
+        text = (
+            "Intro.\n"
+            "```json\n"
+            '{"supportive": 0.7, "is_business": true, "is_possibly_malformed": false, "malformation_reason": "bad header"}'
+            "\n```"
+        )
+        result = parse_llm_response(text)
+        self.assertFalse(result.is_possibly_malformed)
+        self.assertIsNone(result.malformation_reason)
+
     def test_parse_llm_response_no_label(self):
         text = "Intro.\n" "```\n" '{"supportive": 0.6, "is_business": true}' "\n```"
         result = parse_llm_response(text)

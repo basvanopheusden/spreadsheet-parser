@@ -84,8 +84,11 @@ async def _fetch_with_cache(
         "'is_business', a short 'business_model_summary', a brief "
         "'justification' for the rating, and a boolean "
         "'is_possibly_malformed' flag indicating if the input data might be "
-        "corrupted or missing. If you set this flag to true also include a "
-        "'malformation_reason' string explaining what seems wrong."
+        "corrupted or missing. The decision about malformed data must be "
+        "based solely on the spreadsheet row provided above; web search "
+        "results should not influence it. If you set this flag to true also "
+        "include a 'malformation_reason' string explaining what seems wrong. "
+        "Leave 'malformation_reason' blank if the data appears valid."
     )
 
     cache_dir = Path.home() / "llm_cache"
