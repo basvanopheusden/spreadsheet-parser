@@ -19,6 +19,7 @@ from datetime import date, datetime
 
 DEFAULT_MAX_LINES = 5
 DEFAULT_MAX_CONCURRENCY = 5
+DEFAULT_MAX_INDUSTRIES = 25
 
 # Mapping of lower-case industry aliases to their canonical names
 _INDUSTRY_ALIASES = {
@@ -234,6 +235,7 @@ def generate_final_report(
     is_malformed_flags: Optional[List[Optional[bool]]] = None,
     *,
     plot_path: Optional[Path] = None,
+    max_industries: int = DEFAULT_MAX_INDUSTRIES,
 ) -> str:
     """Generate a more detailed summary of stance coverage per industry.
 
@@ -253,6 +255,8 @@ def generate_final_report(
     ``plot_path`` optionally specifies where a bar chart of supportive and
     opposing company counts per AI sub-category should be saved. If
     ``matplotlib`` is unavailable the graph is skipped.
+    ``max_industries`` controls how many of the most common industries are
+    included in the output. The default shows up to 25.
     """
 
     from collections import Counter, defaultdict
@@ -369,8 +373,14 @@ def generate_final_report(
             rank_vals.append(rank_val)
 
         size_records.append((emp, rev_val, rank_val, perc))
+    sorted_inds = sorted(
+        industry_data,
+        key=lambda k: (-industry_data[k]["total"], k),
+    )
+    top_industries = set(sorted_inds[:max_industries])
+
     lines = ["Final Report:"]
-    for ind in sorted(industry_data):
+    for ind in sorted(top_industries):
         if industry_data[ind]["supportive"] > 0:
             lines.append(f"- {ind}: supportive company found")
         else:
@@ -384,7 +394,7 @@ def generate_final_report(
     industry_support_total = sum(d["supportive"] for d in industry_data.values())
     if industry_support_total == 0:
         industry_support_total = 1
-    for ind in sorted(industry_data):
+    for ind in sorted(top_industries):
         d = industry_data[ind]
         proportion = d["supportive"] / industry_support_total
         bar_len = int(round(proportion * max_bar_width)) if d["supportive"] else 0
@@ -395,7 +405,7 @@ def generate_final_report(
         lines.append(f"  {ind}: {bar} ({d['supportive']}/{d['total']})")
 
     lines.append("\nAverage stance per industry:")
-    for ind in sorted(industry_data):
+    for ind in sorted(top_industries):
         st_list = industry_data[ind]["stances"]
         if st_list:
             lines.append(f"  {ind}: {mean(st_list):.2f}")

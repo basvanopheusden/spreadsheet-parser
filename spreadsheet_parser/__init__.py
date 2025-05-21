@@ -12,6 +12,7 @@ from .llm import (
 from .analysis import (
     DEFAULT_MAX_LINES,
     DEFAULT_MAX_CONCURRENCY,
+    DEFAULT_MAX_INDUSTRIES,
     generate_final_report,
     percentile_ranks,
     run_async,
@@ -38,6 +39,7 @@ __all__ = [
     "async_report_to_abstract",
     "DEFAULT_MAX_LINES",
     "DEFAULT_MAX_CONCURRENCY",
+    "DEFAULT_MAX_INDUSTRIES",
     "generate_final_report",
     "percentile_ranks",
     "run_async",
