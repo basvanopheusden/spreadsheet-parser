@@ -798,16 +798,12 @@ async def _collect_company_data(
                 print(content)
                 parsed = parse_llm_response(content)
                 if parsed is not None:
-                    stance_val = parsed.get("supportive")
-                    justification = parsed.get("justification")
-                    subcat = parsed.get("sub_category")
-                    parsed_summary = (
-                        parsed.get("business_model_summary")
-                        or parsed.get("business_model")
-                        or parsed.get("summary")
-                    )
-                    is_biz = parsed.get("is_business")
-                    malformed = parsed.get("is_possibly_malformed")
+                    stance_val = parsed.supportive
+                    justification = parsed.justification
+                    subcat = parsed.sub_category
+                    parsed_summary = parsed.business_model_summary
+                    is_biz = parsed.is_business
+                    malformed = parsed.is_possibly_malformed
                 else:
                     parsed_summary = None
 
