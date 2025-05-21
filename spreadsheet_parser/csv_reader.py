@@ -76,6 +76,48 @@ def _fix_employee_range(text: str) -> str:
     return text
 
 
+def _employee_bounds(text: str) -> tuple[Optional[int], Optional[int]]:
+    """Return the numeric bounds described by an employee range string."""
+
+    if text is None:
+        return (None, None)
+
+    text = str(text).replace(",", "").strip()
+    m = re.match(r"^(\d+)\s*[-–]\s*(\d+)$", text)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+
+    m = re.match(r"^(\d+)\s*\+$", text)
+    if m:
+        return (int(m.group(1)), None)
+
+    digits = re.findall(r"\d+", text)
+    if digits:
+        n = int(digits[0])
+        return (n, n)
+
+    return (None, None)
+
+
+def _employee_range_contains(default: str, actual: str) -> bool:
+    """Return True if ``actual`` falls within ``default`` bounds."""
+
+    d_min, d_max = _employee_bounds(default)
+    a_min, a_max = _employee_bounds(actual)
+
+    if d_min is None or a_min is None:
+        return False
+
+    if a_min < d_min:
+        return False
+
+    if d_max is not None:
+        if a_max is None or a_max > d_max:
+            return False
+
+    return True
+
+
 def _parse_industries(value: Optional[str]) -> Optional[list[str]]:
     """Split the raw ``Industries`` string into a list of values."""
 
@@ -264,6 +306,8 @@ def read_companies_from_csvs(paths: Iterable[Union[str, Path]]) -> List[Company]
                 if current in (None, ""):
                     setattr(company, field, value)
                 elif str(current).strip().lower() != str(value).strip().lower():
+                    if field == "number_of_employees" and _employee_range_contains(value, str(current)):
+                        continue
                     logger.warning(
                         "%s row %d %s %r conflicts with filename %r",
                         p.name,

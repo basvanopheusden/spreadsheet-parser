@@ -37,8 +37,7 @@ class TestCSVReaderAdditions(unittest.TestCase):
         self.assertEqual(companies[0].operating_status, "Active")
         self.assertEqual(companies[0].estimated_revenue_range, "$1B to $100B")
         self.assertEqual(companies[0].number_of_employees, "51+")
-        log_text = "\n".join(cm.output)
-        self.assertIn("conflicts with filename", log_text)
+        self.assertEqual(len(cm.output), 5)
 
 if __name__ == "__main__":
     unittest.main()
