@@ -49,6 +49,7 @@ async def _run_async(
         subcats,
         just_list,
         biz_list,
+        mal_list,
         table_rows,
         cached_count,
     ) = await _collect_company_data(companies, max_concurrency, model_name)
@@ -59,6 +60,7 @@ async def _run_async(
         subcats,
         just_list,
         biz_list,
+        is_malformed_flags=mal_list,
         plot_path=output_dir / "support_by_subcat.png",
 
     )
