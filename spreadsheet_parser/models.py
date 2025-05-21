@@ -48,6 +48,7 @@ class LLMOutput:
     business_model_summary: Optional[str] = None
     justification: Optional[str] = None
     is_possibly_malformed: Optional[bool] = None
+    malformation_reason: Optional[str] = None
     raw: Optional[Dict[str, object]] = None
 
     def __post_init__(self) -> None:
@@ -60,4 +61,7 @@ class LLMOutput:
             and not self.business_model_summary.strip()
         ):
             self.business_model_summary = None
+
+        if self.malformation_reason is not None and not self.malformation_reason.strip():
+            self.malformation_reason = None
 
