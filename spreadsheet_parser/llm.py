@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -18,6 +19,15 @@ from .models import Company, LLMOutput
 
 
 logger = logging.getLogger(__name__)
+
+# Simple adaptive rate limiter shared across all OpenAI calls in this module.
+# ``_NEXT_REQUEST`` stores the earliest time a new request may be made.  The
+# delay between requests is controlled by ``_RATE_DELAY`` which is increased
+# when we encounter rate limit errors and slowly decreased on successful calls.
+_RATE_LOCK = asyncio.Lock()
+_NEXT_REQUEST = 0.0
+_RATE_DELAY = 0.5  # start slightly below 1 req/sec
+_MAX_DELAY = 60.0
 
 
 _AI_SUBCATEGORIES = [
@@ -37,6 +47,51 @@ _AI_SUBCATEGORIES = [
     "Other AI",
     "Non-AI",
 ]
+
+
+async def _call_openai_with_retry(client, **kwargs):
+    """Call ``client.responses.create`` respecting a global rate limit."""
+
+    global _NEXT_REQUEST, _RATE_DELAY
+
+    attempts = 0
+    while True:
+        async with _RATE_LOCK:
+            now = time.monotonic()
+            wait = _NEXT_REQUEST - now
+            if wait > 0:
+                await asyncio.sleep(wait)
+            _NEXT_REQUEST = max(now, _NEXT_REQUEST) + _RATE_DELAY
+
+        try:
+            response = client.responses.create(**kwargs)
+            if inspect.isawaitable(response):
+                response = await response
+            # Gradually decrease delay on success.
+            _RATE_DELAY = max(0.5, _RATE_DELAY * 0.9)
+            return response
+        except openai.RateLimitError as e:
+            attempts += 1
+            if attempts >= 5:
+                raise
+            msg = str(e)
+            match = re.search(r"after\s+([0-9.]+)", msg)
+            if match:
+                retry = float(match.group(1))
+            else:
+                retry = min(_RATE_DELAY * 2, _MAX_DELAY)
+            logger.warning("Rate limit hit, retrying in %.1f seconds", retry)
+            _RATE_DELAY = min(_MAX_DELAY, max(_RATE_DELAY, retry))
+            await asyncio.sleep(retry)
+        except Exception as e:
+            attempts += 1
+            if attempts >= 5:
+                raise
+            retry = min(_RATE_DELAY * 2, _MAX_DELAY)
+            logger.warning(
+                "API request failed (%s). Retrying in %.1f seconds", type(e).__name__, retry
+            )
+            await asyncio.sleep(retry)
 
 
 async def _fetch_with_cache(
@@ -118,9 +173,7 @@ async def _fetch_with_cache(
         kwargs["seed"] = seed
 
     try:
-        response = client.responses.create(**kwargs)
-        if inspect.isawaitable(response):
-            response = await response
+        response = await _call_openai_with_retry(client, **kwargs)
     except Exception:
         logger.exception("API request failed for %s", company_name)
         raise
@@ -413,7 +466,7 @@ async def async_report_to_abstract(
         kwargs["seed"] = seed
 
     try:
-        response = await client.responses.create(**kwargs)
+        response = await _call_openai_with_retry(client, **kwargs)
     except Exception:
         logger.exception("API request failed during report summarization")
         raise
