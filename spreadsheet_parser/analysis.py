@@ -2,8 +2,11 @@ import asyncio
 import csv
 import os
 import re
+import json
+import random
 import openai
 import inspect
+from dataclasses import asdict
 from .models import Company
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -677,6 +680,45 @@ async def _make_client():
     return openai.OpenAI(api_key=api_key)
 
 
+async def _sample_data_quality_report(
+    companies,
+    model_name: str,
+    sample_size: int = 100,
+) -> Optional[str]:
+    """Ask an LLM to look for corruption patterns in a random data sample."""
+
+    if not companies:
+        return None
+
+    sample = random.sample(companies, min(len(companies), sample_size))
+    rows = json.dumps([asdict(c) for c in sample], ensure_ascii=False, indent=2)
+    prompt = (
+        "Here is a random sample of rows from a company spreadsheet. "
+        "Identify any patterns that could indicate malformed or corrupted data. "
+        "Respond with a short bullet-point list of observations.\n\n"
+        "```json\n" + rows + "\n```"
+    )
+
+    client = await _make_client()
+    try:
+        response = await client.responses.create(model=model_name, input=prompt)
+        if inspect.isawaitable(response):
+            response = await response
+    finally:
+        close_method = getattr(client, "aclose", None)
+        if close_method is None:
+            close_method = getattr(client, "close", None)
+        if close_method:
+            try:
+                result = close_method()
+                if inspect.isawaitable(result):
+                    await result
+            except Exception:
+                pass
+
+    return getattr(response, "output_text", None)
+
+
 async def _collect_company_data(
     companies,
     max_concurrency: int,
@@ -806,6 +848,7 @@ async def run_async(
     *,
     model_name: str = "gpt-4o",
 ) -> None:
+    quality_notes = await _sample_data_quality_report(companies, model_name)
 
     (
         stances,
@@ -824,6 +867,9 @@ async def run_async(
         biz_list,
         plot_path=output_dir / "support_by_subcat.png",
     )
+
+    if quality_notes:
+        report = "Data Quality Review:\n" + quality_notes.strip() + "\n\n" + report
     print(report)
     print(f"Cached responses used: {cached_count}")
 

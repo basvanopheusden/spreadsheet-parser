@@ -430,9 +430,10 @@ class TestIndustryNormalization(unittest.TestCase):
 
 
 class TestRunAsync(unittest.TestCase):
+    @patch("spreadsheet_parser.analysis._sample_data_quality_report", new_callable=AsyncMock)
     @patch("spreadsheet_parser.analysis.async_report_to_abstract", new_callable=AsyncMock)
     @patch("company_lookup.async_fetch_company_web_info")
-    def test_qualitative_justification_column(self, mock_fetch, mock_abstract):
+    def test_qualitative_justification_column(self, mock_fetch, mock_abstract, mock_quality):
         responses = {
             "Acme Corp": (
                 "Summary one.\n"
@@ -453,6 +454,7 @@ class TestRunAsync(unittest.TestCase):
 
         mock_fetch.side_effect = fake_fetch
         mock_abstract.return_value = "Abstract"
+        mock_quality.return_value = "- ok"
 
         companies = [
             Company(
