@@ -334,9 +334,8 @@ class TestFinalReport(unittest.TestCase):
             justifications=justifications,
             is_malformed_flags=[False, False, True],
         )
-        self.assertIn("Manufacturing: supportive company found", report)
-        self.assertIn("Technology: no supportive company found", report)
-        self.assertNotIn("Software: supportive company found", report)
+        # Industry summary lines should not be present
+        self.assertNotIn("supportive company found", report)
         self.assertIn("Overall 1/2 companies are supportive", report)
         self.assertIn("Supportive companies by industry", report)
         self.assertIn("  Manufacturing: #################### (1/1)", report)
@@ -482,8 +481,7 @@ class TestIndustryLimit(unittest.TestCase):
         stances.append(0.9)
 
         report = generate_final_report(companies, stances)
-        self.assertIn("IndustryA: supportive company found", report)
-        self.assertNotIn("IndustryZ: supportive company found", report)
+        self.assertNotIn("supportive company found", report)
 
 
 class TestRunAsync(unittest.TestCase):
