@@ -65,3 +65,6 @@ class LLMOutput:
         if self.malformation_reason is not None and not self.malformation_reason.strip():
             self.malformation_reason = None
 
+        if not self.is_possibly_malformed:
+            self.malformation_reason = None
+
