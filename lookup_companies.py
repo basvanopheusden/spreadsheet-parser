@@ -65,8 +65,18 @@ async def _run_async(
     print(f"Cached responses used: {cached_count}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    malformed_names = [
+        c.organization_name
+        for c, mal in zip(companies, mal_list)
+        if mal
+    ]
     spreadsheet_parser.analysis._write_quality_report_csv(
-        output_dir / "data_quality_report.csv", quality_notes
+        output_dir / "data_quality_report.csv",
+        quality_notes,
+        malformed_names,
+    )
+    spreadsheet_parser.analysis._write_quality_report_txt(
+        output_dir / "data_quality_report.txt", quality_notes
     )
     table_path = output_dir / "company_analysis.csv"
     with table_path.open("w", encoding="utf-8", newline="") as f:
