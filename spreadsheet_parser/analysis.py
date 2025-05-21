@@ -7,7 +7,7 @@ import random
 import openai
 import inspect
 from dataclasses import asdict
-from .models import Company
+from .models import Company, LLMOutput
 from pathlib import Path
 from typing import List, Optional, Tuple, Iterable
 
@@ -777,6 +777,36 @@ def _write_quality_report_txt(path: Path, notes: Optional[str]) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _write_malformed_data_csv(path: Path, rows: Iterable[dict]) -> None:
+    """Write details for malformed rows to ``path`` as CSV."""
+
+    records = list(rows)
+    if not records:
+        return
+
+    # Collect all field names
+    field_names: list[str] = []
+    seen = set()
+    for rec in records:
+        for key in rec.keys():
+            if key not in seen:
+                seen.add(key)
+                field_names.append(key)
+
+    with path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=field_names)
+        writer.writeheader()
+        for rec in records:
+            flat = {}
+            for k in field_names:
+                val = rec.get(k)
+                if isinstance(val, list):
+                    flat[k] = ";".join(map(str, val))
+                else:
+                    flat[k] = val
+            writer.writerow(flat)
+
+
 async def _collect_company_data(
     companies,
     max_concurrency: int,
@@ -789,6 +819,7 @@ async def _collect_company_data(
     List[Optional[bool]],
     List[List[str]],
     int,
+    List[Optional[LLMOutput]],
 ]:
     """Fetch and parse web info for each company."""
 
@@ -807,6 +838,7 @@ async def _collect_company_data(
     mal_list: List[Optional[bool]] = []
     cached_count = 0
     table_rows: List[List[str]] = []
+    parsed_list: List[Optional[LLMOutput]] = []
 
     async def fetch(company):
         async with semaphore:
@@ -835,6 +867,7 @@ async def _collect_company_data(
                 cached_count += 1
             if content:
                 parsed = parse_llm_response(content)
+                parsed_list.append(parsed)
                 if parsed is not None:
                     stance_val = parsed.supportive
                     justification = parsed.justification
@@ -850,6 +883,8 @@ async def _collect_company_data(
                 )[0].strip()
                 if not summary_text:
                     summary_text = parsed_summary or ""
+            else:
+                parsed_list.append(None)
         stance_label: str
         rank_str: str
         if stance_val is None:
@@ -896,7 +931,16 @@ async def _collect_company_data(
         except Exception:
             pass
 
-    return stances, subcats, just_list, biz_list, mal_list, table_rows, cached_count
+    return (
+        stances,
+        subcats,
+        just_list,
+        biz_list,
+        mal_list,
+        table_rows,
+        cached_count,
+        parsed_list,
+    )
 
 
 async def run_async(
@@ -916,6 +960,7 @@ async def run_async(
         mal_list,
         table_rows,
         cached_count,
+        parsed_list,
     ) = await _collect_company_data(companies, max_concurrency, model_name)
 
     report = generate_final_report(
@@ -945,6 +990,18 @@ async def run_async(
         malformed_names,
     )
     _write_quality_report_txt(output_dir / "data_quality_report.txt", quality_notes)
+
+    malformed_rows = []
+    for comp, parsed, flag in zip(companies, parsed_list, mal_list):
+        if flag:
+            row = asdict(comp)
+            if parsed is not None:
+                if parsed.raw:
+                    row.update(parsed.raw)
+                row.update({k: v for k, v in asdict(parsed).items() if k != "raw"})
+            malformed_rows.append(row)
+    if malformed_rows:
+        _write_malformed_data_csv(output_dir / "malformed_data.csv", malformed_rows)
     table_path = output_dir / "company_analysis.csv"
     with table_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)

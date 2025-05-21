@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 import asyncio
 import csv
 
+from dataclasses import asdict
 from spreadsheet_parser.analysis import (
     generate_final_report,
     DEFAULT_MAX_LINES,
@@ -47,6 +48,7 @@ async def _run_async(
         mal_list,
         table_rows,
         cached_count,
+        parsed_list,
     ) = await _collect_company_data(companies, max_concurrency, model_name)
 
     report = generate_final_report(
@@ -78,6 +80,19 @@ async def _run_async(
     spreadsheet_parser.analysis._write_quality_report_txt(
         output_dir / "data_quality_report.txt", quality_notes
     )
+    malformed_rows = []
+    for comp, parsed, flag in zip(companies, parsed_list, mal_list):
+        if flag:
+            row = asdict(comp)
+            if parsed is not None:
+                if parsed.raw:
+                    row.update(parsed.raw)
+                row.update({k: v for k, v in asdict(parsed).items() if k != "raw"})
+            malformed_rows.append(row)
+    if malformed_rows:
+        spreadsheet_parser.analysis._write_malformed_data_csv(
+            output_dir / "malformed_data.csv", malformed_rows
+        )
     table_path = output_dir / "company_analysis.csv"
     with table_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
