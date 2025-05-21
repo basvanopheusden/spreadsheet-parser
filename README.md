@@ -96,8 +96,9 @@ python lookup_companies.py path/to/companies.csv \
 
 This will fetch summaries and then display only the final report. The output
 also notes how many responses were retrieved from the local cache. Use the
-`--output-dir` option to specify where a CSV table (`company_analysis.csv`) and
-the text report (`final_report.txt`) should be saved.
+`--output-dir` option to specify where a CSV table (`company_analysis.csv`),
+the text report (`final_report.txt`) and the data quality report
+(`data_quality_report.csv`) should be saved.
 
 ## Report Generation
 

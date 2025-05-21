@@ -548,16 +548,22 @@ class TestRunAsync(unittest.TestCase):
             with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
                 asyncio.run(run_async(companies, 1, pathlib.Path(tmpdir)))
             csv_path = pathlib.Path(tmpdir) / "company_analysis.csv"
+            dq_path = pathlib.Path(tmpdir) / "data_quality_report.csv"
             abstract_path = pathlib.Path(tmpdir) / "abstract.txt"
             with csv_path.open(newline="") as f:
                 rows = list(csv.reader(f))
             self.assertTrue(abstract_path.exists())
+            self.assertTrue(dq_path.exists())
+            with dq_path.open(newline="") as f:
+                dq_rows = list(csv.reader(f))
 
         self.assertEqual(rows[0][0], "Company Name")
         acme = rows[1]
         globex = rows[2]
         self.assertNotEqual(acme[3], acme[5])
         self.assertEqual(globex[3], globex[5])
+        self.assertEqual(dq_rows[0], ["Observation"])
+        self.assertEqual(dq_rows[1][0], "ok")
 
 
 if __name__ == "__main__":
